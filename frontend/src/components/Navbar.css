@@ -1,0 +1,93 @@
+/* ==========================================================================
+   Navbar.css - styles for components/Navbar.jsx (owner: Member 1)
+   ========================================================================== */
+
+.navbar {
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.navbar-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.navbar-brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+
+.navbar-brand span {
+  color: var(--color-primary);
+}
+
+.navbar-brand:hover {
+  text-decoration: none;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.navbar-link {
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.navbar-link:hover {
+  background-color: var(--color-page);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+/* NavLink adds .active automatically on the matching URL. */
+.navbar-link.active {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-weight: 600;
+}
+
+.navbar-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-left: auto;
+}
+
+.navbar-email {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Small screens: stack the links under the brand. */
+@media (max-width: 640px) {
+  .navbar-inner {
+    gap: var(--space-sm);
+  }
+
+  .navbar-email {
+    display: none;
+  }
+}

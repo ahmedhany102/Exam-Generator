@@ -1,0 +1,37 @@
+-- ============================================================================
+-- 02_rls.sql - Row Level Security for the Candidate Portal
+-- Owner: Member 1 - Ahmed Hany (Database, Auth & Security)
+-- ----------------------------------------------------------------------------
+-- MILESTONE M0 PLACEHOLDER
+-- Run this AFTER 01_schema.sql. The goal of this file is to prove, during the
+-- security defense, that the browser (anon / authenticated key) can only ever
+-- see the logged-in user's own rows.
+--
+-- Required steps:
+--   1. ALTER TABLE ... ENABLE ROW LEVEL SECURITY; on all four tables.
+--
+--   2. profiles
+--       - SELECT / INSERT / UPDATE only where auth.uid() = id
+--       - no DELETE policy (profiles disappear with the auth user)
+--
+--   3. jobs
+--       - SELECT for the "authenticated" role only
+--       - no INSERT/UPDATE/DELETE policy: jobs are managed from the dashboard
+--
+--   4. applications
+--       - SELECT and INSERT only where auth.uid() = user_id
+--       - NO UPDATE / DELETE: a candidate must not be able to change the
+--         quiz_score or ai_match_score after the fact
+--
+--   5. security_logs
+--       - INSERT allowed for "anon" AND "authenticated" because a FAILED login
+--         happens before a session exists
+--       - SELECT for "authenticated" only where user_email = auth.jwt() ->> 'email'
+--       - no UPDATE / DELETE: the audit log is append-only
+--
+--   6. Verification: create two test users (A and B) and prove that B cannot
+--      read A's profile, applications, logs or CV file. Record the result in
+--      the final report.
+-- ============================================================================
+
+-- TODO(Member 1 - Ahmed Hany): write the policies in Milestone M1.

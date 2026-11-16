@@ -1,0 +1,43 @@
+# ============================================================================
+# Candidate Portal - root .gitignore
+# Anything listed here is NEVER committed to Git. Keep this file at the repo
+# root so every team member gets the same rules automatically.
+# ============================================================================
+
+# ---- Node / React (frontend) -----------------------------------------------
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+*.local
+
+# ---- Environment variables (secret keys - never commit!) --------------------
+.env
+.env.local
+.env.development
+.env.production
+frontend/.env
+
+# ---- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+ai-service/.venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# ---- Editors / OS ----------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- Logs / misc -----------------------------------------------------------
+*.log
+npm-debug.log*
+pnpm-debug.log*

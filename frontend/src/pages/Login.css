@@ -1,0 +1,43 @@
+/* ==========================================================================
+   Login.css - styles for pages/Login.jsx (owner: Member 1)
+   Auth forms are narrow, so this page is centred with a max width.
+   ========================================================================== */
+
+.login-page {
+  max-width: 420px;
+  margin: var(--space-xl) auto;
+  padding: var(--space-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.login-page .page-header {
+  text-align: center;
+}
+
+.login-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.login-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.login-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+.login-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}

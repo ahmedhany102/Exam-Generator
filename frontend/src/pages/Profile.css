@@ -1,0 +1,49 @@
+/* ==========================================================================
+   Profile.css - styles for pages/Profile.jsx (owner: Member 1)
+   ========================================================================== */
+
+.profile-page {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+/* Two cards side by side on wide screens, stacked on phones. */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+}
+
+.profile-page h2 {
+  font-size: 1.05rem;
+  margin-bottom: var(--space-md);
+}
+
+.profile-todo-list {
+  margin: var(--space-sm) 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.profile-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+.profile-cv-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-md);
+}
+
+.profile-cv-status--ok {
+  color: var(--color-success);
+}
+
+@media (max-width: 720px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+}

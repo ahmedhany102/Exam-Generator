@@ -1,0 +1,32 @@
+/* ==========================================================================
+   Loader.css - styles for components/Loader.jsx (owner: Member 1)
+   ========================================================================== */
+
+.loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.loader-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: loader-spin 0.7s linear infinite;
+}
+
+.loader-text {
+  font-weight: 500;
+}
+
+@keyframes loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

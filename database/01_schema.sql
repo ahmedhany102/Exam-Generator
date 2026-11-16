@@ -1,0 +1,34 @@
+-- ============================================================================
+-- 01_schema.sql - Candidate Portal database schema
+-- Owner: Member 1 - Ahmed Hany (Database, Auth & Security)
+-- ----------------------------------------------------------------------------
+-- MILESTONE M0 PLACEHOLDER
+-- This file only contains the plan. Ahmed Hany writes the real SQL in
+-- Milestone M1 and runs it in the Supabase Dashboard -> SQL Editor.
+--
+-- Run order (see PLAN.md section 6):
+--   1. 01_schema.sql   <- this file (tables, foreign keys, trigger)
+--   2. 02_rls.sql      (enable RLS + policies)
+--   3. 03_storage.sql  (private "cvs" bucket + storage policies)
+--   4. 04_seed_jobs.sql (Member 2 - Ibrahim Lotfy)
+--
+-- Tables to create, in this exact order (dependencies first):
+--   profiles      (id uuid PK -> auth.users, full_name, job_title, cv_url, updated_at)
+--   jobs          (id, title, company_name, location, description,
+--                  required_skills text, quiz_questions jsonb, created_at)
+--   applications  (id, user_id -> profiles.id, job_id -> jobs.id,
+--                  quiz_score int 0-5, ai_match_score int 0-100,
+--                  ai_strengths jsonb, ai_weaknesses jsonb,
+--                  status text default 'Submitted', created_at,
+--                  UNIQUE(user_id, job_id))
+--   security_logs (id, user_email text, event_type text, details text, created_at)
+--                 ^ no foreign key on user_email: failed logins have no user row
+--
+-- Also required here:
+--   - CHECK constraints on quiz_score (0..5) and ai_match_score (0..100)
+--   - DEFAULT now() on every created_at / updated_at
+--   - A trigger on auth.users that inserts a blank profiles row on signup
+--     (SECURITY DEFINER) so the frontend never races the RLS policy.
+-- ============================================================================
+
+-- TODO(Member 1 - Ahmed Hany): write the schema in Milestone M1.

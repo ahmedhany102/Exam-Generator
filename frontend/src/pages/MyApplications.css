@@ -1,0 +1,115 @@
+/* ==========================================================================
+   MyApplications.css - styles for pages/MyApplications.jsx (owner: Member 3)
+   ========================================================================== */
+
+.applications-page {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.applications-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.applications-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.applications-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+.applications-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.application-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.application-card-title {
+  font-size: 1.05rem;
+  margin: 0 0 var(--space-xs);
+}
+
+.application-card-company {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+
+.application-card-date {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* Two columns: strengths | weaknesses */
+.application-feedback {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+.application-feedback h3 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.feedback-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.88rem;
+}
+
+.feedback-list li {
+  display: flex;
+  gap: var(--space-sm);
+  padding: 0.2rem 0;
+}
+
+.feedback-list--strengths li::before {
+  content: '+';
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.feedback-list--weaknesses li::before {
+  content: '-';
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .application-feedback {
+    grid-template-columns: 1fr;
+  }
+}

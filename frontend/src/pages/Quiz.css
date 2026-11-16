@@ -1,0 +1,72 @@
+/* ==========================================================================
+   Quiz.css - styles for pages/Quiz.jsx (owner: Member 2)
+   ========================================================================== */
+
+.quiz-page {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.quiz-page code {
+  padding: 0.1rem 0.35rem;
+  background-color: var(--color-page);
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.quiz-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.quiz-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.quiz-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+/* Timer pill - turns red in the last 60 seconds (add the class in JS). */
+.quiz-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0.3rem 0.8rem;
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+  border-radius: 999px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.quiz-timer--danger {
+  background-color: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+/* One answer option */
+.quiz-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0.65rem 0.85rem;
+  margin-bottom: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  cursor: pointer;
+}
+
+.quiz-option:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-soft);
+}
+
+.quiz-option input[type='radio'] {
+  accent-color: var(--color-primary);
+}

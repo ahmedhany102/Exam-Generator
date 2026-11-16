@@ -1,0 +1,29 @@
+-- ============================================================================
+-- 03_storage.sql - Storage bucket for CV files
+-- Owner: Member 1 - Ahmed Hany (Database, Auth & Security)
+-- ----------------------------------------------------------------------------
+-- MILESTONE M0 PLACEHOLDER
+-- Run this AFTER 02_rls.sql.
+--
+-- Design decision for the security course:
+--   The bucket is PRIVATE (public = false). A CV contains personal data, so it
+--   must not be readable by anyone who guesses the URL. The frontend reads the
+--   file back with supabase.storage.from('cvs').download(path) and, when a link
+--   is needed, with createSignedUrl().
+--
+-- Required steps:
+--   1. create a bucket named "cvs"
+--        - public = false
+--        - file_size_limit = 5242880   (5 MB)
+--        - allowed_mime_types = ARRAY['application/pdf']
+--   2. Upload path convention: {user_id}/cv.pdf
+--      (the user id is the first folder, which makes the policy simple)
+--   3. Policies on storage.objects for bucket_id = 'cvs':
+--        - INSERT / UPDATE / SELECT only where
+--          (storage.foldername(name))[1] = auth.uid()::text
+--        - no DELETE policy for candidates (keep the history simple)
+--   4. Document in the final report that the frontend also validates the file
+--      (type + < 5 MB) BEFORE uploading: defence in depth, not the only layer.
+-- ============================================================================
+
+-- TODO(Member 1 - Ahmed Hany): write the bucket + policies in Milestone M1.

@@ -1,0 +1,17 @@
+# Normalise line endings so all four members see the same files
+# (two of us work on Windows, and CRLF/LF churn shows up as fake diffs).
+* text=auto eol=lf
+
+# Shell scripts and Python entry points stay LF-aware
+*.sh text eol=lf
+*.py text eol=lf
+
+# Windows-only helper scripts keep CRLF
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets must never be converted
+*.pdf binary
+*.png binary
+*.jpg binary
+*.ico binary

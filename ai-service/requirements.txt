@@ -1,0 +1,32 @@
+# Candidate Portal - AI service dependencies (M0)
+# Install with:  pip install -r requirements.txt
+#
+# Versions are pinned to a minimum with ">=" so students do not get stuck on a
+# single release, while still guaranteeing an API that supports this code.
+
+# Web framework: defines the /health and /analyze endpoints and the automatic
+# Swagger docs at /docs.
+fastapi>=0.110,<1.0
+
+# ASGI server that actually runs the app. "[standard]" adds the fast
+# websockets/uvloop extras, so `uvicorn main:app --reload` works out of the box.
+uvicorn[standard]>=0.27,<1.0
+
+# Required by FastAPI to parse multipart/form-data, i.e. file uploads.
+# Without it, POST /analyze fails with a "form data" error.
+python-multipart>=0.0.9
+
+# PDF text extraction (import name: fitz). NOT used at M0 - listed now so the
+# environment is already ready when the real analysis lands (TODO 1).
+pymupdf>=1.24
+
+# scikit-learn: TF-IDF vectoriser + cosine similarity for comparing CV text
+# with the job description. NOT used at M0 - for later milestones (TODO 2).
+scikit-learn>=1.4
+
+# Test runner for tests/test_analyze.py.
+pytest>=8.0
+
+# HTTP client that fastapi.testclient.TestClient is built on; pytest cannot
+# call the API without it.
+httpx>=0.27

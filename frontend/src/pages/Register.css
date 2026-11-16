@@ -1,0 +1,27 @@
+/* ==========================================================================
+   Register.css - styles for pages/Register.jsx (owner: Member 1)
+   ========================================================================== */
+
+.register-page {
+  max-width: 460px;
+  margin: var(--space-xl) auto;
+  padding: var(--space-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.register-page .page-header {
+  text-align: center;
+}
+
+.register-todo-list {
+  margin: var(--space-sm) 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.register-todo-list li {
+  margin-bottom: 0.2rem;
+}

@@ -1,0 +1,36 @@
+-- ============================================================================
+-- 04_seed_jobs.sql - Sample job posts (includes the 5-question quiz)
+-- Owner: Member 2 - Ibrahim Lotfy (Jobs Feed & Timed Quiz)
+-- ----------------------------------------------------------------------------
+-- MILESTONE M0 PLACEHOLDER
+-- Run this AFTER 03_storage.sql. It is a plain INSERT script, so it can be
+-- re-run safely if you start the block with:
+--     DELETE FROM public.jobs;
+--
+-- What to insert: 6 to 8 realistic jobs. Every job needs:
+--   title            e.g. 'Junior Frontend Developer'
+--   company_name     e.g. 'Nile Tech'
+--   location         e.g. 'Cairo, Egypt (Hybrid)'
+--   description      2-3 sentences used by the AI service for TF-IDF scoring
+--   required_skills  comma separated, lowercase, no spaces around commas:
+--                    'javascript,react,css,git'
+--   quiz_questions   jsonb array of EXACTLY 5 objects, each:
+--                    {
+--                      "question":   "text of the question",
+--                      "options":    ["option A", "option B", "option C", "option D"],
+--                      "correctIndex": 0..3
+--                    }
+--
+-- Rule for the team: keep required_skills consistent with the quiz topic so
+-- the AI match score and the quiz score tell a coherent story in the demo.
+--
+-- Example shape only - write the real content in Milestone M2:
+--   INSERT INTO public.jobs (title, company_name, location, description,
+--                            required_skills, quiz_questions)
+--   VALUES ('Junior Frontend Developer', 'Nile Tech', 'Cairo, Egypt',
+--           'Build and maintain React screens ...',
+--           'javascript,react,css,git',
+--           '[{"question": "...", "options": ["a","b","c","d"], "correctIndex": 0}, ...]'::jsonb);
+-- ============================================================================
+
+-- TODO(Member 2 - Ibrahim Lotfy): write the seed data in Milestone M2.
