@@ -2,9 +2,20 @@
 
 This document is the single source of truth for the course project. It fixes the architecture, the file ownership, the API contract, the database shape, and the order in which work is merged. It contains no full implementation code on purpose: each member writes their own files, and the small snippets here only show the shape of what to write.
 
+## How to Use This Plan with an AI Coding Assistant
+
+> **Tell your AI assistant your name (Ahmed Hany, Ibrahim Lotfy, Ahmed Fayez, or Ibrahim Abduljawad) and your branch, and instruct it to strictly edit only the files listed under your name.**
+
+- Open with your identity and scope, for example: "I am **Ibrahim Lotfy**, working on branch `member2`. Only edit files whose owner tag is Ibrahim Lotfy (member2). Do not modify any other file; if a change is needed elsewhere, tell me who owns it instead."
+- The binding scope is Section 2 (folder tree with the owner tag on every line) plus your own checklist in Section 7. Everything else is read-only context for you.
+- Shared files (`README.md`, `PLAN.md`, `.gitignore`, `.gitattributes`, `frontend/src/App.jsx`, `frontend/src/index.css`, `frontend/package.json`) are edited by **Ahmed Hany** only; ask before touching them.
+- If the assistant proposes a change outside your scope, reply with the owner from Section 8.1 instead of making the edit.
+- Never let the assistant rewrite a shipped function signature: the names in Section 7.1 are the contract the other three members code against.
+
 ## How to use this document
 
-- Every member works **only** inside the files assigned to them in the tree in Section 2, on their own branch (`member1` to `member4`).
+- Every member works **only** inside the files assigned to them in the tree in Section 2, on their own branch.
+- The four owners are **Ahmed Hany** (`member1`), **Ibrahim Lotfy** (`member2`), **Ahmed Fayez** (`member3`) and **Ibrahim Abduljawad** (`member4`). Every owner tag in this document is written as a full name plus a branch.
 - If you need something from another member's file, do not edit that file. Read the contract in this plan or ask in the group chat, then wait for the owner to add it.
 - Section 7 is your personal checklist. Work top to bottom; each task ends with a "Done when" line that tells you when to stop and commit.
 - Section 8 is the integration order. Do not merge out of that order.
@@ -67,70 +78,71 @@ Three rules that follow from this picture, and that the defense will ask about:
 
 ## 2. Folder and file tree
 
-The tree is rooted at the repository root — the folder that contains `.gitignore`, `README.md`, and `PLAN.md`. The `(M1)`-style tags are the owner of each file and are binding.
+The tree is rooted at the repository root — the folder that contains `.gitignore`, `.gitattributes`, `README.md`, and `PLAN.md`. The tag at the end of every file line is its owner - a full name plus a branch - and it is binding. Folder lines only describe the folder.
 
 ```text
-candidate-portal/                  <- repository root
-├── README.md                      (shared: setup + run commands)
-├── PLAN.md                        (shared: this document)
-├── .gitignore                     (shared: node_modules, .env, __pycache__, .venv, dist)
+candidate-portal/                                         <- repository root
+├── README.md                                             Ahmed Hany (member1) - shared: setup + run commands
+├── PLAN.md                                               Ahmed Hany (member1) - shared: this document
+├── .gitignore                                            Ahmed Hany (member1) - shared: node_modules, .env, __pycache__, .venv, dist
+├── .gitattributes                                        Ahmed Hany (member1) - shared: line endings for the whole team
 │
-├── database/                      (SQL only, run by hand in the Supabase SQL editor)
-│   ├── 01_schema.sql              (M1)
-│   ├── 02_rls.sql                 (M1)
-│   ├── 03_storage.sql             (M1)
-│   └── 04_seed_jobs.sql           (M2)
+├── database/                                             folder: SQL only, run by hand in the Supabase SQL editor
+│   ├── 01_schema.sql                                     Ahmed Hany (member1)
+│   ├── 02_rls.sql                                        Ahmed Hany (member1)
+│   ├── 03_storage.sql                                    Ahmed Hany (member1)
+│   └── 04_seed_jobs.sql                                  Ibrahim Lotfy (member2)
 │
-├── frontend/                      (React + Vite single page app)
-│   ├── package.json               (M1, on the shared skeleton)
-│   ├── vite.config.js             (M1, on the shared skeleton)
-│   ├── index.html                 (M1, on the shared skeleton)
-│   ├── .env.example               (M1)
+├── frontend/                                             folder: React + Vite single page app
+│   ├── package.json                                      Ahmed Hany (member1) - on the shared skeleton
+│   ├── vite.config.js                                    Ahmed Hany (member1) - on the shared skeleton
+│   ├── index.html                                        Ahmed Hany (member1) - on the shared skeleton
+│   ├── .env.example                                      Ahmed Hany (member1)
 │   └── src/
-│       ├── main.jsx               (M1)
-│       ├── App.jsx                (M1, route table only)
-│       ├── index.css              (M1, global reset + CSS variables)
+│       ├── main.jsx                                      Ahmed Hany (member1)
+│       ├── App.jsx                                       Ahmed Hany (member1) - route table only
+│       ├── index.css                                     Ahmed Hany (member1) - global reset + CSS variables
 │       ├── lib/
-│       │   └── supabaseClient.js                     (M1)
+│       │   └── supabaseClient.js                         Ahmed Hany (member1)
 │       ├── context/
-│       │   └── AuthContext.jsx                       (M1)
+│       │   └── AuthContext.jsx                           Ahmed Hany (member1)
 │       ├── components/
-│       │   ├── Navbar.jsx                            (M1)
-│       │   ├── Navbar.css                            (M1)
-│       │   ├── ProtectedRoute.jsx                    (M1)
-│       │   ├── Loader.jsx                            (M1)
-│       │   ├── Loader.css                            (M1)
-│       │   ├── ProgressBar.jsx                       (M3)
-│       │   └── ProgressBar.css                       (M3)
+│       │   ├── Navbar.jsx                                Ahmed Hany (member1)
+│       │   ├── Navbar.css                                Ahmed Hany (member1)
+│       │   ├── ProtectedRoute.jsx                        Ahmed Hany (member1)
+│       │   ├── Loader.jsx                                Ahmed Hany (member1)
+│       │   ├── Loader.css                                Ahmed Hany (member1)
+│       │   ├── ProgressBar.jsx                           Ahmed Fayez (member3)
+│       │   └── ProgressBar.css                           Ahmed Fayez (member3)
 │       ├── services/
-│       │   ├── securityLogService.js                 (M1)
-│       │   ├── profileService.js                     (M1)
-│       │   ├── jobsService.js                        (M2)
-│       │   ├── aiService.js                          (M3)
-│       │   └── applicationsService.js                (M3)
+│       │   ├── securityLogService.js                     Ahmed Hany (member1)
+│       │   ├── profileService.js                         Ahmed Hany (member1)
+│       │   ├── jobsService.js                            Ibrahim Lotfy (member2)
+│       │   ├── aiService.js                              Ahmed Fayez (member3)
+│       │   └── applicationsService.js                    Ahmed Fayez (member3)
 │       ├── utils/
-│       │   ├── validateCvFile.js                     (M1)
-│       │   ├── filterJobs.js                         (M2)
-│       │   └── scoreQuiz.js                          (M2)
+│       │   ├── validateCvFile.js                         Ahmed Hany (member1)
+│       │   ├── filterJobs.js                             Ibrahim Lotfy (member2)
+│       │   └── scoreQuiz.js                              Ibrahim Lotfy (member2)
 │       └── pages/
-│           ├── Login.jsx      Login.css               (M1)
-│           ├── Register.jsx   Register.css            (M1)
-│           ├── Profile.jsx    Profile.css             (M1)
-│           ├── SecurityActivity.jsx  SecurityActivity.css  (M1)
-│           ├── Jobs.jsx       Jobs.css                (M2)
-│           ├── JobDetails.jsx JobDetails.css          (M2)
-│           ├── Quiz.jsx       Quiz.css                (M2)
-│           ├── Applying.jsx   Applying.css            (M3)
-│           └── MyApplications.jsx  MyApplications.css (M3)
+│           ├── Login.jsx      Login.css                  Ahmed Hany (member1)
+│           ├── Register.jsx   Register.css               Ahmed Hany (member1)
+│           ├── Profile.jsx    Profile.css                Ahmed Hany (member1)
+│           ├── SecurityActivity.jsx  SecurityActivity.css  Ahmed Hany (member1)
+│           ├── Jobs.jsx       Jobs.css                   Ibrahim Lotfy (member2)
+│           ├── JobDetails.jsx JobDetails.css             Ibrahim Lotfy (member2)
+│           ├── Quiz.jsx       Quiz.css                   Ibrahim Lotfy (member2)
+│           ├── Applying.jsx   Applying.css               Ahmed Fayez (member3)
+│           └── MyApplications.jsx  MyApplications.css    Ahmed Fayez (member3)
 │
-└── ai-service/                    (standalone Python service, not in the Vite app)
-    ├── main.py                    (M4, the whole service)
-    ├── requirements.txt           (M4)
-    ├── README.md                  (M4, how to run + how the algorithm works)
+└── ai-service/                                           folder: standalone Python service, not in the Vite app
+    ├── main.py                                           Ibrahim Abduljawad (member4) - the whole service
+    ├── requirements.txt                                  Ibrahim Abduljawad (member4)
+    ├── README.md                                         Ibrahim Abduljawad (member4) - how to run + how the algorithm works
     ├── samples/
-    │   └── README.md              (M4, describes the sample files you add locally)
+    │   └── README.md                                     Ibrahim Abduljawad (member4) - describes the sample files you add locally
     └── tests/
-        └── test_analyze.py        (M4, pytest + FastAPI TestClient)
+        └── test_analyze.py                               Ibrahim Abduljawad (member4) - pytest + FastAPI TestClient
 ```
 
 ### 2.1 Responsibility per folder
@@ -526,10 +538,10 @@ If any step behaves differently, the policy in `02_rls.sql` is wrong; fix the po
 Milestone names used across the project, matching the `TODO(Member ... Milestone Mx)` headers already in the files:
 
 - **M0** — this scaffold commit.
-- **M1** — Ahmed Hany: schema, RLS, storage, auth, profile, security log.
-- **M2** — Ibrahim Lotfy: job seeds, job feed, job details, quiz.
-- **M3** — Ahmed Fayez: AI service call, submission pipeline, applications dashboard.
-- **M4** — Ibrahim Abduljawad: the Python service and its tests.
+- **M1** — Ahmed Hany (`member1`): schema, RLS, storage, auth, profile, security log.
+- **M2** — Ibrahim Lotfy (`member2`): job seeds, job feed, job details, quiz.
+- **M3** — Ahmed Fayez (`member3`): AI service call, submission pipeline, applications dashboard.
+- **M4** — Ibrahim Abduljawad (`member4`): the Python service and its tests.
 - **M5** — integration, end-to-end test, defense rehearsal (Section 8).
 
 Already complete in M0 — read it, do not rewrite it:
@@ -539,27 +551,28 @@ Already complete in M0 — read it, do not rewrite it:
 - `src/main.jsx` (`BrowserRouter` → `AuthProvider` → `App`) and `src/App.jsx` (the route table plus the unknown-URL redirect).
 - `src/components/ProtectedRoute.jsx`, `src/components/Loader.jsx`, `Loader.css`, `src/components/Navbar.jsx`, `Navbar.css`, `src/components/ProgressBar.jsx`, `ProgressBar.css`, `src/index.css`.
 - `frontend/vite.config.js` (port 5173 with `strictPort`, matching the CORS origin), `frontend/.env.example`, `frontend/package.json` (React 18, React Router 6, supabase-js 2; no test runner, no UI library), `frontend/index.html`.
-- `src/context/AuthContext.jsx` is partly done: it loads the session, subscribes to `onAuthStateChange`, and exposes `loading` and `signOut`. Member 1 adds `signIn` and `signUp`.
+- `src/context/AuthContext.jsx` is partly done: it loads the session, subscribes to `onAuthStateChange`, and exposes `loading` and `signOut`. Ahmed Hany (member1) adds `signIn` and `signUp`.
 - Every function in the five `services/` files already exists with its final name, signature, and JSDoc; the bodies throw `"... is not implemented yet"`. Implement the bodies, do not rename them.
-- `ai-service/main.py` and `ai-service/tests/test_analyze.py` are real, working code: a contract-shaped stub that validates input, returns derived fake numbers, and already passes six tests. Member 4 replaces the fake parts (Section 7, Member 4).
+- `ai-service/main.py` and `ai-service/tests/test_analyze.py` are real, working code: a contract-shaped stub that validates input, returns derived fake numbers, and already passes six tests. Ibrahim Abduljawad (member4) replaces the fake parts in his own checklist (Section 7).
 - Still placeholders with a `TODO(Member ...)` header: the four `database/*.sql` files, every `pages/*.jsx`, and the three `utils/`.
 - Branches `member1` to `member4`, all cut from the same `main` commit.
 
 Function names fixed by the scaffold (use these exactly):
 
-| File | Functions |
-| --- | --- |
-| `services/securityLogService.js` | `logSecurityEvent({ eventType, details, email })`, `getMySecurityLogs()` |
-| `services/profileService.js` | `getProfile()`, `updateProfile(updates)`, `uploadCv(file)`, `downloadCv(cvPath)` |
-| `services/jobsService.js` | `getJobs()`, `getJobById(jobId)` |
-| `services/aiService.js` | `analyzeCv(cvFile, job)`, constant `AI_ERROR_MESSAGES` |
-| `services/applicationsService.js` | `submitApplication({ jobId, quizScore, aiMatchScore, aiStrengths, aiWeaknesses })`, `getMyApplications()`, `hasApplied(jobId)` |
+| File | Owner | Functions |
+| --- | --- | --- |
+| `services/securityLogService.js` | Ahmed Hany (member1) | `logSecurityEvent({ eventType, details, email })`, `getMySecurityLogs()` |
+| `services/profileService.js` | Ahmed Hany (member1) | `getProfile()`, `updateProfile(updates)`, `uploadCv(file)`, `downloadCv(cvPath)` |
+| `services/jobsService.js` | Ibrahim Lotfy (member2) | `getJobs()`, `getJobById(jobId)` |
+| `services/aiService.js` | Ahmed Fayez (member3) | `analyzeCv(cvFile, job)`, constant `AI_ERROR_MESSAGES` |
+| `services/applicationsService.js` | Ahmed Fayez (member3) | `submitApplication({ jobId, quizScore, aiMatchScore, aiStrengths, aiWeaknesses })`, `getMyApplications()`, `hasApplied(jobId)` |
+| `ai-service/main.py` | Ibrahim Abduljawad (member4) | `POST /analyze`, `GET /health` |
 
 Each service reads the user id itself from `supabase.auth.getUser()`, so no page passes a user id in. That keeps the RLS story simple: the client can only ever act as the logged-in user.
 
-Rules for all four members: one branch each, no direct commits to `main`, pull requests only after your own checklist is done and `npm run dev` starts cleanly.
+Rules for all four owners - Ahmed Hany (`member1`), Ibrahim Lotfy (`member2`), Ahmed Fayez (`member3`), Ibrahim Abduljawad (`member4`): one branch each, no direct commits to `main`, pull requests only after your own checklist is done and `npm run dev` starts cleanly.
 
-### Ahmed Hany — Member 1 (branch member1)
+### Ahmed Hany — Team Lead, Database, Auth & Security (branch `member1`)
 
 1. [ ] Create the Supabase project. Copy the URL and anon key into `frontend/.env`, restart the dev server, and confirm the configuration warning banner in `App.jsx` disappears.
    - Done when: `/login` renders and the banner is gone.
@@ -593,9 +606,9 @@ Rules for all four members: one branch each, no direct commits to `main`, pull r
 - Why a `security definer` trigger is needed for profile creation, and why the CV bucket is private rather than public.
 - Why failed logins need an `anon` INSERT policy, and what the `with check` clause narrows.
 
-### Ibrahim Lotfy — Member 2 (branch member2)
+### Ibrahim Lotfy — Jobs Feed & Timed Quiz (branch `member2`)
 
-1. [ ] Write `database/04_seed_jobs.sql`: eight jobs, each with a realistic `description`, a comma-separated `required_skills`, and a `quiz_questions` JSONB array of exactly five objects shaped `{question, options, correctIndex}` with four options each. Run it and ask Member 1 to review it.
+1. [ ] Write `database/04_seed_jobs.sql`: eight jobs, each with a realistic `description`, a comma-separated `required_skills`, and a `quiz_questions` JSONB array of exactly five objects shaped `{question, options, correctIndex}` with four options each. Run it and ask Ahmed Hany (member1) to review it.
    - Done when: `select count(*) from jobs` returns 8, and for every row `jsonb_array_length(quiz_questions) = 5` with `correctIndex` between 0 and 3.
 2. [ ] Implement `src/services/jobsService.js`: `getJobs()` returning all jobs newest first, and `getJobById(id)` returning a single row with `.single()`. Both return `{ data, error }` shaped results or throw a clean message — pick one convention and comment it.
    - Done when: `getJobs()` from the console returns 8 rows while signed in and an empty array while signed out.
@@ -605,7 +618,7 @@ Rules for all four members: one branch each, no direct commits to `main`, pull r
    - Done when: typing filters the grid immediately with no refetch, and clearing the input restores all eight cards.
 5. [ ] Build `pages/JobDetails.jsx` and `JobDetails.css`: load by `useParams().jobId`, show company, location, description, and the required skills as chips. Guard against a missing job with a "Job not found" state. The Apply button navigates to `/jobs/:jobId/quiz`, and is disabled with "You have already applied" when `hasApplied(jobId)` from `src/services/applicationsService.js` returns true.
    - Done when: a bad id in the URL shows the not-found state instead of a blank page, and the Apply button is disabled for a job already applied to.
-   - Cross-owner note: `hasApplied()` belongs to Member 3 and throws until M3 lands, so wrap the call in `try/catch` and treat a throw as `false` for now.
+   - Cross-owner note: `hasApplied()` belongs to Ahmed Fayez (member3) and throws until his branch lands, so wrap the call in `try/catch` and treat a throw as `false` for now.
 6. [ ] Implement `src/utils/scoreQuiz.js` as a pure function `scoreQuiz(questions, answers)` comparing `answers[i]` to `questions[i].correctIndex` and returning an integer `0..5`. Comment the assumption that both arrays are the same length.
    - Done when: an all-correct answer array returns 5, an all-wrong one returns 0, and an unanswered entry counts as wrong rather than throwing.
 7. [ ] Build the quiz state in `pages/Quiz.jsx`: shuffle nothing, keep a `currentIndex` and an `answers` array of length 5 initialized to `-1`, with Next and Previous navigation and a progress line ("Question 3 of 5"). Disable Next until an option is selected.
@@ -624,7 +637,7 @@ Rules for all four members: one branch each, no direct commits to `main`, pull r
 - Why searching is done in the browser instead of with a Supabase query at this scale, and when that would stop being acceptable.
 - How `useParams` and router state carry the job id and quiz score between pages, and why the score is not passed in the URL.
 
-### Ahmed Fayez — Member 3 (branch member3)
+### Ahmed Fayez — AI Integration & Applications Dashboard (branch `member3`)
 
 1. [ ] Implement the body of `analyzeCv(cvFile, job)` in `src/services/aiService.js`, keeping the shipped signature and JSDoc: build the `FormData` exactly as in Section 4.6, `fetch` `${AI_SERVICE_URL}/analyze`, parse the JSON, and round `match_score` to an integer.
    - Done when: calling it from the console with a real job returns `match_score`, `strengths`, and `weaknesses`.
@@ -634,7 +647,7 @@ Rules for all four members: one branch each, no direct commits to `main`, pull r
    - Done when: each function works from the console while signed in and returns only the current user's rows.
 4. [ ] Detect the duplicate case: when `submitApplication` fails with Postgres error code `23505` (unique violation), return a specific `ALREADY_APPLIED` result instead of a generic error, and comment why the check is done in the database and not only in the UI.
    - Done when: applying twice to the same job shows "You have already applied for this job." and leaves exactly one row.
-5. [ ] Build `pages/Applying.jsx` and `Applying.css` as the submission pipeline with three visible states: uploading and analyzing, saving, done. On mount, read `quizScore` from router state, call `analyzeCv`, then `submitApplication`, then log `APPLICATION_SUBMITTED` through Member 1's `logSecurityEvent`, then navigate to `/applications`.
+5. [ ] Build `pages/Applying.jsx` and `Applying.css` as the submission pipeline with three visible states: uploading and analyzing, saving, done. On mount, read `quizScore` from router state, call `analyzeCv`, then `submitApplication`, then log `APPLICATION_SUBMITTED` through Ahmed Hany's `logSecurityEvent`, then navigate to `/applications`.
    - Done when: the whole flow completes in one pass and the record is visible on `/applications`.
 6. [ ] Add retry and failure UI to `Applying.jsx`: on failure show the message from step 2 and a "Try again" button that re-runs the pipeline, plus a "Back to job" link. Never leave the user on a blank screen and never insert a half-filled application row.
    - Done when: with the Python service stopped, the page shows the offline message and Try again succeeds after the service is started.
@@ -644,7 +657,7 @@ Rules for all four members: one branch each, no direct commits to `main`, pull r
    - Done when: a submitted application shows both bars at the right widths and all strengths and weaknesses are listed.
 9. [ ] Harden the page against missing data: treat `null` or missing JSONB arrays as empty lists, and handle a deleted job (`jobs` relation comes back as `null`) without crashing the map.
    - Done when: setting `ai_strengths` to `[]` in the Table Editor renders "No strengths recorded" instead of an error.
-10. [ ] Run the full pipeline against Member 4's real analyser once the stub is replaced, and paste the JSON response you received into your pull request as evidence.
+10. [ ] Run the full pipeline against Ibrahim Abduljawad's real analyser once the stub is replaced, and paste the JSON response you received into your pull request as evidence.
     - Done when: the pasted response matches the contract in Section 4.3 field for field.
 
 **Defense notes**
@@ -654,7 +667,7 @@ Rules for all four members: one branch each, no direct commits to `main`, pull r
 - Why the duplicate application is prevented by a database constraint rather than an `if` in JavaScript.
 - How error `code` values are mapped to messages, and why branching on `detail` would be wrong.
 
-### Ibrahim Abduljawad — Member 4 (branch member4)
+### Ibrahim Abduljawad — Python AI Microservice (branch `member4`)
 
 1. [ ] Create the virtual environment and install the pinned dependencies: `python -m venv .venv`, activate it, `pip install -r requirements.txt`. Then start `python main.py` and open `/docs`.
    - Done when: `/health` returns `{"status":"ok"}` and `/docs` lists both endpoints.
@@ -694,15 +707,26 @@ Rules for all four members: one branch each, no direct commits to `main`, pull r
 
 Merge in this order; each step unblocks the next.
 
-| Order | Branch | Depends on | Note |
-| --- | --- | --- | --- |
-| 1 | `member4` | nothing | The M0 stub of `/analyze` already returns the contract shape, so this branch can merge before the real algorithm exists and it unblocks Member 3 immediately. |
-| 2 | `member1` | nothing | `database/01`–`03` plus auth, profile, and security pages. Everything else assumes a signed-in user and a working profile. |
-| 3 | `member2` | `member1` (RLS, `AuthContext`) | `database/04_seed_jobs.sql` and the jobs and quiz pages. Its Apply button also calls Member 3's `hasApplied()`, so it must tolerate that function throwing until M3 merges. |
-| 4 | `member3` | `member1` (profile, CV path) and `member2` (jobs) | AI service call, submission, dashboard. |
-| 5 | `member4` again | everything | The real analyser replaces the stub once Member 3 has proven the pipeline against it. |
+| Order | Branch | Owner | Depends on | Note |
+| --- | --- | --- | --- | --- |
+| 1 | `member4` | **Ibrahim Abduljawad** | nothing | The M0 stub of `/analyze` already returns the contract shape, so this branch can merge before the real algorithm exists and it unblocks Ahmed Fayez (member3) immediately. |
+| 2 | `member1` | **Ahmed Hany** | nothing | `database/01`–`03` plus auth, profile, and security pages. Everything else assumes a signed-in user and a working profile, so this is the branch that unblocks Ibrahim Lotfy and Ahmed Fayez. |
+| 3 | `member2` | **Ibrahim Lotfy** | `member1` (RLS, `AuthContext`) | `database/04_seed_jobs.sql` and the jobs and quiz pages. Its Apply button also calls Ahmed Fayez's `hasApplied()`, so it must tolerate that function throwing until `member3` merges. |
+| 4 | `member3` | **Ahmed Fayez** | `member1` (profile, CV path) and `member2` (jobs) | AI service call, submission, dashboard. |
+| 5 | `member4` again | **Ibrahim Abduljawad** | everything | The real analyser replaces the stub once Ahmed Fayez (member3) has proven the pipeline against it. |
 
 Practical rules: keep `main` green (the app must start at every merge), rebase your branch on `main` before opening the pull request, and never resolve a conflict by deleting someone else's file — ask its owner. The only file two members may both need to touch is `frontend/src/App.jsx`; it is already complete, so in practice nobody should need to edit it.
+
+**Cross-owner dependencies in plain names** (say these out loud when you plan the week):
+
+| Dependency | What one owner needs from the other | How to stay unblocked |
+| --- | --- | --- |
+| **Ibrahim Lotfy (member2)** needs **Ahmed Fayez (member3)** | `hasApplied(jobId)` for the Apply button in `JobDetails.jsx` | Call it inside `try/catch` and treat a throw as `false` until `member3` merges. |
+| **Ahmed Fayez (member3)** needs **Ahmed Hany (member1)** | `profiles.cv_url`, `downloadCv(cvPath)` and the storage policies that let the client read the CV back | Code against the function names in Section 7.1; test with any local PDF until `member1` lands. |
+| **Ahmed Fayez (member3)** needs **Ibrahim Abduljawad (member4)** | The `/analyze` request and the six response keys | The M0 stub already answers with the final shape; do not wait for the real algorithm. |
+| **Ibrahim Lotfy (member2)** needs **Ahmed Hany (member1)** | The `jobs` SELECT policy and a working session from `AuthContext` | Seed rows locally in SQL and test the feed as soon as `member1` merges. |
+| **Ibrahim Abduljawad (member4)** needs **Ahmed Fayez (member3)** | Proof that the real analyser matches the contract | Keep the M0 stub until `member3` pastes the live JSON into their pull request. |
+| **Everyone** needs **Ahmed Hany (member1)** for shared files | `README.md`, `PLAN.md`, `.gitignore`, `.gitattributes`, `frontend/src/App.jsx`, `frontend/src/index.css`, `frontend/package.json` | Ask; never edit a shared file on your own branch. |
 
 ### 8.2 End-to-end test script
 
@@ -739,7 +763,7 @@ Run against `main` after all four merges, with two accounts and both servers run
 
 - Each member demonstrates their own files for 3 minutes, from the actual code, not from slides.
 - Everyone can answer the four defense notes bullets under their own checklist without notes.
-- One person (Member 1) explains the architecture diagram in Section 1.3 end to end, including what happens to the anon key.
+- Ahmed Hany (member1) explains the architecture diagram in Section 1.3 end to end, including what happens to the anon key.
 - Dry-run the two-user RLS test live, since it is the hardest thing to fake and the most impressive thing to show.
 
 ---

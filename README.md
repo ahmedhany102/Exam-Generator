@@ -51,14 +51,15 @@ State management: React `useState` + one `AuthContext`. **No Redux, no Zustand**
 
 ```
 candidate-portal/
-├── README.md                  <- this file
-├── PLAN.md                    <- full technical plan + per-member checklist
-├── .gitignore
+├── README.md                  <- this file (shared: Ahmed Hany, member1)
+├── PLAN.md                    <- full technical plan + per-member checklist (shared: Ahmed Hany, member1)
+├── .gitignore                 <- shared: Ahmed Hany (member1)
+├── .gitattributes             <- shared: Ahmed Hany (member1)
 ├── database/                  <- SQL run in the Supabase SQL Editor, in order
-│   ├── 01_schema.sql          (Member 1)
-│   ├── 02_rls.sql             (Member 1)
-│   ├── 03_storage.sql         (Member 1)
-│   └── 04_seed_jobs.sql       (Member 2)
+│   ├── 01_schema.sql          Ahmed Hany (member1)
+│   ├── 02_rls.sql             Ahmed Hany (member1)
+│   ├── 03_storage.sql         Ahmed Hany (member1)
+│   └── 04_seed_jobs.sql       Ibrahim Lotfy (member2)
 ├── frontend/                  <- React app (Vite)
 │   ├── package.json
 │   ├── vite.config.js
@@ -78,9 +79,11 @@ candidate-portal/
     ├── main.py                the whole service (heavily commented)
     ├── requirements.txt
     ├── README.md
-    ├── samples/               sample PDFs for testing (added in M4)
+    ├── samples/               sample PDFs for testing (added by Ibrahim Abduljawad in member4)
     └── tests/test_analyze.py  pytest suite
 ```
+
+File-by-file ownership is in the table in [section 7](#7-team-branches-and-ownership); `PLAN.md` repeats it as a tag on every line of its folder tree.
 
 **Rule:** a page never calls `supabase` directly. It calls a function in `services/`. That keeps `fetch`/SQL strings in one predictable place and makes the code review much easier to follow.
 
@@ -196,10 +199,12 @@ Ownership map for the database tables:
 
 | Table | Reader / writer | Owner |
 | --- | --- | --- |
-| `profiles` | Auth pages, Profile page | Member 1 |
-| `jobs` | Jobs feed + Quiz (read-only) | Member 2 (seed data) |
-| `applications` | Applying pipeline + dashboard | Member 3 |
-| `security_logs` | Login, upload and blocked-file events | Member 1 |
+| `profiles` | Auth pages, Profile page | Ahmed Hany (member1) |
+| `jobs` | Jobs feed + Quiz (read-only) | Ibrahim Lotfy (member2) - seed data; Ahmed Hany (member1) - the RLS read policy |
+| `applications` | Applying pipeline + dashboard | Ahmed Fayez (member3) |
+| `security_logs` | Login, upload and blocked-file events | Ahmed Hany (member1) |
+
+Members and their dependencies, in plain names, are listed in `PLAN.md` section 8.1. Before starting work, each member should read the "How to Use This Plan with an AI Coding Assistant" note at the top of `PLAN.md`.
 
 ---
 
@@ -270,10 +275,10 @@ Rebase keeps the history linear and avoids the "merge commit noise" that makes t
 
 ### 8.6 Suggested merge order
 
-1. `member4` (AI service stub) → already in `main` from M0, so Member 3 can integrate.
-2. `member1` (schema + RLS + auth) - everything else depends on it.
-3. `member2` (jobs + quiz).
-4. `member3` (AI integration + dashboard) - needs 1, 2 and 4.
+1. `member4` - Ibrahim Abduljawad (AI service stub) → already in `main` from M0, so Ahmed Fayez (member3) can integrate immediately.
+2. `member1` - Ahmed Hany (schema + RLS + auth) - everything else depends on it.
+3. `member2` - Ibrahim Lotfy (jobs + quiz).
+4. `member3` - Ahmed Fayez (AI integration + dashboard) - needs 1, 2 and 4.
 
 ---
 
