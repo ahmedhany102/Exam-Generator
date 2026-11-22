@@ -1,25 +1,27 @@
-# AI-Powered Candidate Portal — Implementation Plan
+# Online Examination System — Implementation Plan
 
-This document is the single source of truth for the course project. It fixes the architecture, the file ownership, the API contract, the database shape, and the order in which work is merged. It contains no full implementation code on purpose: each member writes their own files, and the small snippets here only show the shape of what to write.
+This document is the single source of truth for the course project. It fixes the architecture, the file ownership, the data model, the access rules and the order in which work is merged. It contains no full implementation code on purpose: each member writes their own files, and the small snippets here only show the shape of what to write.
+
+> Migration note: this plan describes the system after the in-place migration from the team's previous course project. The git history, the four working branches and the file skeleton were kept; the domain was replaced completely.
 
 ## How to Use This Plan with an AI Coding Assistant
 
 > **Tell your AI assistant your name (Ahmed Hany, Ibrahim Lotfy, Ahmed Fayez, or Ibrahim Abduljawad) and your branch, and instruct it to strictly edit only the files listed under your name.**
 
-- Open with your identity and scope, for example: "I am **Ibrahim Lotfy**, working on branch `member2`. Only edit files whose owner tag is Ibrahim Lotfy (member2). Do not modify any other file; if a change is needed elsewhere, tell me who owns it instead."
-- The binding scope is Section 2 (folder tree with the owner tag on every line) plus your own checklist in Section 7. Everything else is read-only context for you.
-- Shared files (`README.md`, `PLAN.md`, `.gitignore`, `.gitattributes`, `frontend/src/App.jsx`, `frontend/src/index.css`, `frontend/package.json`) are edited by **Ahmed Hany** only; ask before touching them.
+- Open with your identity and scope, for example: "I am **Ahmed Fayez**, working on branch `member3`. Only edit files whose owner tag is Ahmed Fayez (member3). Do not modify any other file; if a change is needed elsewhere, tell me who owns it instead."
+- The binding scope is Section 2 (folder tree, owner tag on every file line) plus your own checklist in Section 7. Everything else is read-only context for you.
+- Shared files (`README.md`, `PLAN.md`, `.gitignore`, `.gitattributes`, `frontend/src/App.jsx`, `frontend/src/main.jsx`, `frontend/src/index.css`, `frontend/package.json`) are edited by **Ahmed Hany** only; ask before touching them.
 - If the assistant proposes a change outside your scope, reply with the owner from Section 8.1 instead of making the edit.
-- Never let the assistant rewrite a shipped function signature: the names in Section 7.1 are the contract the other three members code against.
+- Never let the assistant rename a function listed in Section 7.1: those names are the contract the other three members code against.
 
 ## How to use this document
 
 - Every member works **only** inside the files assigned to them in the tree in Section 2, on their own branch.
-- The four owners are **Ahmed Hany** (`member1`), **Ibrahim Lotfy** (`member2`), **Ahmed Fayez** (`member3`) and **Ibrahim Abduljawad** (`member4`). Every owner tag in this document is written as a full name plus a branch.
-- If you need something from another member's file, do not edit that file. Read the contract in this plan or ask in the group chat, then wait for the owner to add it.
+- The four owners are **Ahmed Hany** (`member1`), **Ibrahim Lotfy** (`member2`), **Ahmed Fayez** (`member3`) and **Ibrahim Abduljawad** (`member4`). Every owner tag in this document is a full name plus a branch.
+- If you need something from another member's file, do not edit that file. Read the contract in this plan or ask in the group chat, then wait for the owner.
 - Section 7 is your personal checklist. Work top to bottom; each task ends with a "Done when" line that tells you when to stop and commit.
 - Section 8 is the integration order. Do not merge out of that order.
-- Nothing in this project uses TypeScript, Redux, Zustand, a UI component library, or a state machine. Plain JavaScript, plain CSS, plain SQL.
+- Nothing here uses TypeScript, Redux, Zustand, a UI component library, a state machine or a second server. Plain JavaScript, plain CSS, plain SQL.
 
 ---
 
@@ -27,507 +29,328 @@ This document is the single source of truth for the course project. It fixes the
 
 ### 1.1 Academic context
 
-The project is an MVP Candidate Portal built for four university courses at once:
+One system, three courses:
 
-- **Web Development** — HTML5, CSS3, JavaScript (ES6+), React.
-- **Artificial Intelligence** — Python, FastAPI, PDF text extraction, TF-IDF cosine similarity, skill matching.
-- **Database** — Supabase (PostgreSQL), foreign keys, constraints, Row Level Security, Storage.
-- **Basic Security** — authentication, protected routes, input and file validation, RLS isolation, append-only audit logging.
+- **Web Development** — semantic HTML5, modular CSS3, JavaScript (ES6+), React 18 + Vite, protected routing, forms and validation.
+- **Database** — Supabase/PostgreSQL, eight related tables, foreign keys, `unique` constraints, a signup trigger and one security-definer function.
+- **Security** — password authentication through Supabase Auth, three-role Row Level Security, an append-only audit log, and a design where the answer key never reaches the student's browser.
+
+The project is assessed as a course MVP. A documented limitation with a named fix scores better than a hidden one — that is what Section 9 is for.
 
 ### 1.2 Hard constraints
 
 | Constraint | Why |
 | --- | --- |
-| Plain JavaScript, no TypeScript | Every type annotation is a question someone must defend. Fewer files, fewer concepts. |
-| No Redux or other state library | React `useState` + one `AuthContext` covers the whole app. |
-| One CSS file per page or component | CSS fundamentals must be visible and explainable, not hidden by a UI library. |
-| Heavy comments in every file | The code is reviewed live; a comment next to a non-obvious line saves the defense. |
-| No custom backend | Supabase is the backend. The only server we write is the Python AI service. |
-| One Python file for the AI service | A single `main.py` with commented sections is easier to defend than a package tree. |
+| No custom backend server | Supabase *is* the backend. Fewer moving parts, and RLS becomes the interesting security topic instead of a middleware file. |
+| No TypeScript, no UI library, no Redux | Every line must be explainable in a live code review by a second-year student. |
+| One CSS file per page/component | CSS fundamentals (flexbox, grid, variables) stay visible instead of hidden behind classes from a library. |
+| A page never calls Supabase directly | All queries live in `services/`, so the data layer can be reviewed in one place. |
+| One attempt per exam, enforced by the database | `unique(exam_id, student_id)` - a rule in the schema, not in the UI. |
+| Students never read `options.is_correct` | MCQ integrity. Grading therefore happens inside the `submit_attempt` function. |
+| Only the anon key in the browser | The `service_role` key bypasses RLS and must never leave the dashboard. |
 
 ### 1.3 Architecture
 
-```text
-                +-----------------------------------------------------+
-                |                 Browser (React + Vite)              |
-                |  pages/  components/  services/  utils/  context/    |
-                +-----------+----------------------------+------------+
-                            |                            |
-              HTTPS (supabase-js client)                 | HTTP multipart/form-data
-              anon key only, never service_role           | POST http://localhost:8000/analyze
-                            |                            |
-        +-------------------v-------------------+   +----v--------------------------+
-        |            Supabase (BaaS)            |   |   AI microservice (FastAPI)   |
-        |                                       |   |                               |
-        |  Auth        Postgres        Storage  |   |  main.py                      |
-        |  auth.users  profiles         cvs/    |   |   1. validate file            |
-        |  JWT         jobs             *.pdf   |   |   2. extract text (PyMuPDF)   |
-        |              applications             |   |   3. skill coverage           |
-        |              security_logs            |   |   4. TF-IDF cosine            |
-        |  RLS on all tables + storage objects  |   |   5. score + strengths/weak   |
-        +---------------------------------------+   +-------------------------------+
+```
+                 ┌───────────────────────────────────────────────┐
+                 │        Browser - React 18 + Vite              │
+                 │        http://localhost:5173                  │
+                 │                                               │
+                 │  pages/  ← components/ ← services/  utils/    │
+                 │  App.jsx = route table + role redirect        │
+                 └───────────────────────┬───────────────────────┘
+                                         │
+                     supabase-js over HTTPS, anon key + user JWT
+                                         │
+                 ┌───────────────────────▼───────────────────────┐
+                 │              Supabase (only backend)          │
+                 │                                               │
+                 │  Auth        email + password, JWT, sessions  │
+                 │  Postgres    profiles   subjects   exams      │
+                 │              questions  options    attempts   │
+                 │              answers    security_logs         │
+                 │  RLS         student / doctor / admin rules   │
+                 │  Functions   submit_attempt() - grading       │
+                 └───────────────────────────────────────────────┘
 ```
 
-Three rules that follow from this picture, and that the defense will ask about:
+Three rules that follow from this picture, and that the defence will ask about:
 
-1. The browser talks to Supabase directly, so the anon key is public and safety comes from RLS, not from secrecy.
-2. The browser talks to the AI service directly, so the AI service never sees the database and never stores the PDF.
-3. Scores produced by the AI service are returned to the browser and then inserted by the browser, under the candidate's own RLS INSERT policy.
+1. The browser holds only the anon key; therefore **RLS is the real access control**, not the hidden buttons.
+2. Every role check exists twice: once in `<ProtectedRoute allow={[...]}>` for the interface, once in Postgres for the data.
+3. Grading is the single server-side behaviour. It runs in `submit_attempt()` because a student may not read the answer key.
 
 ---
 
 ## 2. Folder and file tree
 
-The tree is rooted at the repository root — the folder that contains `.gitignore`, `.gitattributes`, `README.md`, and `PLAN.md`. The tag at the end of every file line is its owner - a full name plus a branch - and it is binding. Folder lines only describe the folder.
+The tree is rooted at the repository root. The tag at the end of every file line is its owner - a full name plus a branch - and it is binding. Folder lines only describe the folder.
 
 ```text
-candidate-portal/                                         <- repository root
+online-exam-system/                                       <- repository root
 ├── README.md                                             Ahmed Hany (member1) - shared: setup + run commands
 ├── PLAN.md                                               Ahmed Hany (member1) - shared: this document
-├── .gitignore                                            Ahmed Hany (member1) - shared: node_modules, .env, __pycache__, .venv, dist
-├── .gitattributes                                        Ahmed Hany (member1) - shared: line endings for the whole team
-│
-├── database/                                             folder: SQL only, run by hand in the Supabase SQL editor
+├── .gitignore                                            Ahmed Hany (member1) - shared
+├── .gitattributes                                        Ahmed Hany (member1) - shared: line endings
+├── database/                                             folder: SQL, run by hand in the Supabase SQL editor
 │   ├── 01_schema.sql                                     Ahmed Hany (member1)
 │   ├── 02_rls.sql                                        Ahmed Hany (member1)
-│   ├── 03_storage.sql                                    Ahmed Hany (member1)
-│   └── 04_seed_jobs.sql                                  Ibrahim Lotfy (member2)
-│
-├── frontend/                                             folder: React + Vite single page app
-│   ├── package.json                                      Ahmed Hany (member1) - on the shared skeleton
-│   ├── vite.config.js                                    Ahmed Hany (member1) - on the shared skeleton
-│   ├── index.html                                        Ahmed Hany (member1) - on the shared skeleton
+│   └── 04_seed_exams.sql                                 Ibrahim Abduljawad (member4)
+├── frontend/                                             folder: React + Vite single-page app
+│   ├── package.json                                      Ahmed Hany (member1) - shared
+│   ├── vite.config.js                                    Ahmed Hany (member1) - shared
+│   ├── index.html                                        Ahmed Hany (member1) - shared
 │   ├── .env.example                                      Ahmed Hany (member1)
 │   └── src/
-│       ├── main.jsx                                      Ahmed Hany (member1)
-│       ├── App.jsx                                       Ahmed Hany (member1) - route table only
-│       ├── index.css                                     Ahmed Hany (member1) - global reset + CSS variables
+│       ├── main.jsx                                      Ahmed Hany (member1) - shared
+│       ├── App.jsx                                       Ahmed Hany (member1) - shared: route table + role redirect
+│       ├── index.css                                     Ahmed Hany (member1) - shared: tokens, reset, buttons, forms
 │       ├── lib/
 │       │   └── supabaseClient.js                         Ahmed Hany (member1)
 │       ├── context/
 │       │   └── AuthContext.jsx                           Ahmed Hany (member1)
 │       ├── components/
-│       │   ├── Navbar.jsx                                Ahmed Hany (member1)
-│       │   ├── Navbar.css                                Ahmed Hany (member1)
 │       │   ├── ProtectedRoute.jsx                        Ahmed Hany (member1)
-│       │   ├── Loader.jsx                                Ahmed Hany (member1)
-│       │   ├── Loader.css                                Ahmed Hany (member1)
-│       │   ├── ProgressBar.jsx                           Ahmed Fayez (member3)
-│       │   └── ProgressBar.css                           Ahmed Fayez (member3)
+│       │   ├── Navbar.jsx                                Ahmed Fayez (member3)
+│       │   ├── Navbar.css                                Ahmed Fayez (member3)
+│       │   ├── Loader.jsx                                Ahmed Fayez (member3)
+│       │   ├── Loader.css                                Ahmed Fayez (member3)
+│       │   ├── ProgressBar.jsx                           Ibrahim Lotfy (member2)
+│       │   └── ProgressBar.css                           Ibrahim Lotfy (member2)
 │       ├── services/
 │       │   ├── securityLogService.js                     Ahmed Hany (member1)
-│       │   ├── profileService.js                         Ahmed Hany (member1)
-│       │   ├── jobsService.js                            Ibrahim Lotfy (member2)
-│       │   ├── aiService.js                              Ahmed Fayez (member3)
-│       │   └── applicationsService.js                    Ahmed Fayez (member3)
+│       │   ├── examsService.js                           Ibrahim Lotfy (member2)
+│       │   ├── attemptsService.js                        Ahmed Fayez (member3)
+│       │   ├── gradingService.js                         Ibrahim Abduljawad (member4)
+│       │   ├── resultsService.js                         Ibrahim Abduljawad (member4)
+│       │   └── profileService.js                         Ibrahim Abduljawad (member4)
 │       ├── utils/
-│       │   ├── validateCvFile.js                         Ahmed Hany (member1)
-│       │   ├── filterJobs.js                             Ibrahim Lotfy (member2)
-│       │   └── scoreQuiz.js                              Ibrahim Lotfy (member2)
+│       │   ├── filterExams.js                            Ibrahim Lotfy (member2)
+│       │   ├── validateExam.js                           Ahmed Fayez (member3)
+│       │   └── gradeExam.js                              Ibrahim Abduljawad (member4)
 │       └── pages/
-│           ├── Login.jsx      Login.css                  Ahmed Hany (member1)
-│           ├── Register.jsx   Register.css               Ahmed Hany (member1)
-│           ├── Profile.jsx    Profile.css                Ahmed Hany (member1)
-│           ├── SecurityActivity.jsx  SecurityActivity.css  Ahmed Hany (member1)
-│           ├── Jobs.jsx       Jobs.css                   Ibrahim Lotfy (member2)
-│           ├── JobDetails.jsx JobDetails.css             Ibrahim Lotfy (member2)
-│           ├── Quiz.jsx       Quiz.css                   Ibrahim Lotfy (member2)
-│           ├── Applying.jsx   Applying.css               Ahmed Fayez (member3)
-│           └── MyApplications.jsx  MyApplications.css    Ahmed Fayez (member3)
-│
-└── ai-service/                                           folder: standalone Python service, not in the Vite app
-    ├── main.py                                           Ibrahim Abduljawad (member4) - the whole service
-    ├── requirements.txt                                  Ibrahim Abduljawad (member4)
-    ├── README.md                                         Ibrahim Abduljawad (member4) - how to run + how the algorithm works
-    ├── samples/
-    │   └── README.md                                     Ibrahim Abduljawad (member4) - describes the sample files you add locally
-    └── tests/
-        └── test_analyze.py                               Ibrahim Abduljawad (member4) - pytest + FastAPI TestClient
+│           ├── Login.jsx      Login.css                   Ahmed Hany (member1)
+│           ├── Register.jsx   Register.css                Ahmed Hany (member1)
+│           ├── Exams.jsx      Exams.css                   Ibrahim Lotfy (member2)
+│           ├── ExamDetails.jsx ExamDetails.css            Ibrahim Lotfy (member2)
+│           ├── TakeExam.jsx   TakeExam.css                Ibrahim Lotfy (member2)
+│           ├── MyResults.jsx  MyResults.css               Ibrahim Lotfy (member2)
+│           ├── Profile.jsx    Profile.css                 Ibrahim Lotfy (member2)
+│           ├── DoctorDashboard.jsx DoctorDashboard.css    Ahmed Fayez (member3)
+│           ├── CreateExam.jsx CreateExam.css              Ahmed Fayez (member3)
+│           ├── ManageExams.jsx ManageExams.css            Ahmed Fayez (member3)
+│           ├── ExamResults.jsx ExamResults.css            Ahmed Fayez (member3)
+│           ├── AdminDashboard.jsx AdminDashboard.css      Ibrahim Abduljawad (member4)
+│           ├── ManageUsers.jsx ManageUsers.css            Ibrahim Abduljawad (member4)
+│           ├── ManageSubjects.jsx ManageSubjects.css      Ibrahim Abduljawad (member4)
+│           └── SecurityActivity.jsx SecurityActivity.css  Ibrahim Abduljawad (member4)
 ```
 
 ### 2.1 Responsibility per folder
 
-**`database/`** — four plain SQL files, run once in numbered order in the Supabase SQL editor. They are the only place the schema lives, so a reviewer can read the database from top to bottom. `01_schema.sql` creates tables and constraints, `02_rls.sql` turns on Row Level Security and adds policies, `03_storage.sql` creates the private `cvs` bucket and its folder-prefix policies, `04_seed_jobs.sql` inserts demo jobs with quiz questions. SQL files are idempotent-ish by convention: prefer `create table if not exists` and `drop policy if exists` before `create policy`, so a member can re-run a file while debugging.
+**`database/`** — three plain SQL files, run once in numbered order in the Supabase SQL Editor. They are the only place the schema lives, so a reviewer can read the whole database from top to bottom. `01_schema.sql` creates the tables, the signup trigger and the grading function; `02_rls.sql` turns on Row Level Security and writes the role policies; `04_seed_exams.sql` inserts the demo data. There is no `03_*.sql`: this system stores no uploaded files, so there is no Storage bucket.
 
-**`frontend/`** — a Vite React app with no path aliases and no build tricks. `src/main.jsx` mounts the router, `src/App.jsx` is the route table only, `pages/` holds one file per route with its own CSS, `components/` holds small reusable presentational pieces, `services/` holds every network call so no page calls Supabase or `fetch` directly, `utils/` holds pure functions with no imports (easy to unit test and easy to explain), `lib/` holds the single Supabase client instance, `context/` holds the single global state (the auth session).
-
-**`ai-service/`** — a standalone FastAPI app started with uvicorn. `main.py` is already split into commented sections that stay in place: configuration constants (`MAX_FILE_SIZE_BYTES`, `ALLOWED_MIME_TYPE`, `CORS_ORIGINS`, `MAX_LIST_ITEMS`, `PDF_MAGIC_BYTES`), the app object and its CORS middleware, the flat error handler plus `raise_api_error()`, skill parsing helpers, validation helpers, and the two endpoints. `requirements.txt` lists the five runtime dependencies plus `pytest` and `httpx` for the tests. `tests/test_analyze.py` uses FastAPI's `TestClient`, so no running server and no real PDF are needed.
+**`frontend/`** — a Vite React app with no aliases and no build tricks. `src/main.jsx` mounts the router, `src/App.jsx` is the route table plus the role redirect, `pages/` holds one file per route with its own CSS, `components/` holds small reusable pieces, `services/` holds every database call, `utils/` holds pure functions with no imports, `lib/` holds the single Supabase client, `context/` holds the single global state (session + role).
 
 ---
 
 ## 3. Routes (fixed)
 
-| Path | Page file | Protected | Purpose |
+| Path | Page file | Access | Purpose |
 | --- | --- | --- | --- |
-| `/login` | `pages/Login.jsx` | No | Email + password sign in. |
-| `/register` | `pages/Register.jsx` | No | Create account, then land on `/profile`. |
-| `/` | `pages/Jobs.jsx` | Yes | Job feed with search and skill filter. |
-| `/jobs/:jobId` | `pages/JobDetails.jsx` | Yes | Full job post, Apply button. |
-| `/jobs/:jobId/quiz` | `pages/Quiz.jsx` | Yes | Timed five-question MCQ quiz. |
-| `/jobs/:jobId/apply` | `pages/Applying.jsx` | Yes | AI analysis + application insert. |
-| `/applications` | `pages/MyApplications.jsx` | Yes | Submitted applications and scores. |
-| `/profile` | `pages/Profile.jsx` | Yes | Name, job title, CV upload. |
-| `/security` | `pages/SecurityActivity.jsx` | Yes | The signed-in user's own audit log. |
-| `*` | none | — | Unknown URL redirects to `/` with `<Navigate replace />`. |
+| `/login` | `pages/Login.jsx` | public | Sign in; the redirect afterwards depends on the role. |
+| `/register` | `pages/Register.jsx` | public | Creates a **student** account only. |
+| `/` | — | any signed-in | Reads the role and redirects to that role's home. |
+| `/profile` | `pages/Profile.jsx` | any signed-in | Own name, email, role. |
+| `/security` | `pages/SecurityActivity.jsx` | any signed-in | Own audit rows. |
+| `/exams` | `pages/Exams.jsx` | student | Open exams, search + subject filter. |
+| `/exams/:examId` | `pages/ExamDetails.jsx` | student | Rules, marks, "start exam". |
+| `/exams/:examId/take` | `pages/TakeExam.jsx` | student | Timed exam, auto-submit. |
+| `/my-results` | `pages/MyResults.jsx` | student | Own attempts and scores. |
+| `/doctor/dashboard` | `pages/DoctorDashboard.jsx` | doctor | Counters and recent submissions. |
+| `/doctor/create-exam` | `pages/CreateExam.jsx` | doctor | Dynamic exam + questions + options. |
+| `/doctor/my-exams` | `pages/ManageExams.jsx` | doctor | Own exams, edit/delete. |
+| `/doctor/exams/:examId/results` | `pages/ExamResults.jsx` | doctor | All students' scores for one exam. |
+| `/admin/dashboard` | `pages/AdminDashboard.jsx` | admin | Counters and links. |
+| `/admin/users` | `pages/ManageUsers.jsx` | admin | Roles, activate/deactivate. |
+| `/admin/subjects` | `pages/ManageSubjects.jsx` | admin | Subjects CRUD. |
+| `*` | — | — | Unknown URL redirects to `/`, which picks the role home. |
 
-`App.jsx` already contains this table and must not be restructured. Two behaviours are already wired and should be preserved: `ProtectedRoute` renders `<Loader message="Checking your session..." />` while `useAuth().loading` is true, then redirects to `/login` carrying `state={{ from: location.pathname }}` so the Login page can send the user back where they were; and every protected route in `App.jsx` is wrapped in `<ProtectedRoute>` individually, not by a layout route.
-
-Every protected route is wrapped in `<ProtectedRoute>` inside `App.jsx`. `ProtectedRoute` reads the session from `AuthContext` and renders `<Navigate to="/login" replace />` when there is none.
+`App.jsx` already contains this table and must not be restructured. Every signed-in route is wrapped in `<ProtectedRoute>`, and the role-restricted ones also pass `allow={['student' | 'doctor' | 'admin']}`. `ProtectedRoute` renders `<Loader message="Checking your session..." />` while `useAuth().loading`, then redirects to `/login` carrying `state={{ from: location.pathname }}`.
 
 ---
 
-## 4. API contract (frontend to FastAPI)
+## 4. Data model and access contract
 
-The base URL is the constant `AI_SERVICE_URL` exported from `src/lib/supabaseClient.js`, which reads `import.meta.env.VITE_AI_SERVICE_URL` and falls back to `http://localhost:8000`. `aiService.js` imports that constant; no page and no other service reads the environment variable directly, so the URL lives in exactly one place.
+### 4.1 Tables
 
-### 4.1 Endpoints
-
-| Method | Path | Purpose | Auth |
-| --- | --- | --- | --- |
-| `GET` | `/health` | Liveness check used by the integration test | None |
-| `POST` | `/analyze` | Parse a PDF CV, compare it to a job, return a score | None (local only) |
-| `GET` | `/docs` | FastAPI's generated Swagger UI, free documentation | None |
-
-### 4.2 `POST /analyze` request
-
-`Content-Type: multipart/form-data` (the browser sets the boundary).
-
-| Field | Type | Required | Rules |
-| --- | --- | --- | --- |
-| `cv` | file | Yes | PDF only, maximum 5 MB (5,242,880 bytes), first five bytes must be `%PDF-` |
-| `required_skills` | string | Yes | Comma-separated, e.g. `python,sql,git`. Empty string rejects with `MISSING_FIELD`. |
-| `description` | string | Yes | Job description text, trimmed, non-empty. |
-
-Example request:
-
-```bash
-curl -X POST http://localhost:8000/analyze \
-  -F "cv=@samples/strong_cv.pdf;type=application/pdf" \
-  -F "required_skills=python,sql,git,docker" \
-  -F "description=We are looking for a backend developer with Python and SQL, familiar with Docker."
-```
-
-### 4.3 `POST /analyze` success response — `200`
-
-```json
-{
-  "match_score": 65,
-  "strengths": ["Skill match: python", "Skill match: sql", "Skill match: git", "Resume wording closely matches the job description"],
-  "weaknesses": ["Missing skill: docker", "Resume text is short; add more detail about projects and results"],
-  "matched_skills": ["python", "sql", "git"],
-  "missing_skills": ["docker"],
-  "extracted_chars": 2314
-}
-```
-
-Field rules:
-
-- `match_score` — integer, `0` to `100` inclusive.
-- `strengths`, `weaknesses` — arrays of strings, each capped at 6 items, never `null`, may be empty.
-- `matched_skills`, `missing_skills` — the deduplicated, lower-cased skill lists, in the order the skills appeared in `required_skills`.
-- `extracted_chars` — character count of the extracted, normalized CV text.
-
-### 4.4 Error responses
-
-Every error body is `{"detail": "<technical message>", "code": "<CODE>"}`. The frontend switches on `code`, never on `detail`, and shows the strings held in `AI_ERROR_MESSAGES` at the top of `src/services/aiService.js`. Those constants are the single source of truth for wording; the table below quotes them.
-
-| HTTP | `code` | When it occurs | User-facing message (exact string) |
-| --- | --- | --- | --- |
-| 400 | `INVALID_FILE_TYPE` | Magic bytes are not `%PDF-`, or content type is not `application/pdf`, or extension is not `.pdf` | Your CV must be a real PDF file. Please upload a different file. |
-| 413 | `FILE_TOO_LARGE` | File exceeds 5 MB | Your CV is larger than 5 MB. Please upload a smaller PDF. |
-| 422 | `EMPTY_OR_UNREADABLE_PDF` | PDF opens but yields no text, or the bytes cannot be parsed | We could not read any text from your CV. Scanned images are not supported yet. |
-| 422 | `MISSING_FIELD` | `required_skills` or `description` is empty or whitespace | The job information is incomplete, so the analysis could not run. |
-| 500 | `ANALYSIS_FAILED` | Any unexpected exception during extraction or scoring | The AI analysis failed. Please try again in a moment. |
-
-The frontend also handles two conditions that never reach the service, both of which have their own key in `AI_ERROR_MESSAGES`:
-
-| Key | Condition | User-facing message (exact string) |
+| Table | Columns (type) | Rules |
 | --- | --- | --- |
-| `SERVICE_OFFLINE` | `fetch` throws: service down, CORS failure, DNS | The AI service is not running. Start it with "uvicorn main:app --port 8000" and try again. |
-| `INVALID_FILE_TYPE` / `FILE_TOO_LARGE` | Frontend pre-check rejects the file before upload | The same two strings as the matching rows above. |
+| `profiles` | `id uuid PK → auth.users`, `full_name text`, `email text`, `role text`, `is_active bool`, `created_at timestamptz` | `role in ('student','doctor','admin')`, default `'student'` |
+| `subjects` | `id uuid PK`, `name text`, `code text`, `doctor_id uuid → profiles`, `created_at` | `code unique` |
+| `exams` | `id`, `subject_id → subjects`, `title`, `description`, `duration_minutes int`, `total_marks int`, `start_time`, `end_time`, `created_by → profiles`, `is_active bool`, `created_at` | `duration_minutes > 0`, `total_marks > 0` |
+| `questions` | `id`, `exam_id → exams`, `question_text`, `marks int`, `order_index int` | `marks > 0` |
+| `options` | `id`, `question_id → questions`, `option_text`, `is_correct bool` | exactly one correct per question (validated in `validateExam`) |
+| `attempts` | `id`, `exam_id → exams`, `student_id → profiles`, `started_at`, `submitted_at`, `score int`, `status text` | `unique(exam_id, student_id)`; `status in ('in_progress','submitted','auto_submitted')` |
+| `answers` | `id`, `attempt_id → attempts`, `question_id → questions`, `selected_option_id → options` | `unique(attempt_id, question_id)` |
+| `security_logs` | `id`, `user_email text`, `event_type text`, `details text`, `created_at` | append-only; no foreign key on the email because a failed login has no user row |
 
-When the frontend blocks a file itself, it additionally writes a `security_logs` row with `event_type = 'INVALID_FILE_BLOCKED'` before showing the message. That row is what makes the security demonstration concrete.
+Delete behaviour: every child table cascades from its parent, so deleting an exam removes its questions, options, attempts and answers in one statement.
 
-### 4.5 Notes the defense will ask about
+### 4.2 Role policy matrix
 
-- **CORS** — `CORSMiddleware` allows exactly the two dev-server origins already listed in `CORS_ORIGINS` (`http://localhost:5173` and `http://127.0.0.1:5173`), which is what `vite.config.js` serves with `strictPort`. No wildcard origin, because a wildcard would let any page on the internet call the service.
-- **In-memory only** — the uploaded bytes are read with `await file.read()`, passed to PyMuPDF as a stream, and never written to disk. There is no cleanup step because there is no temp file. This avoids path traversal and disk exhaustion.
-- **Magic bytes** — the service does not trust `content_type` or `filename`; both are attacker-controlled. It checks `%PDF-` in the first bytes as the real gate.
-- **No auth on the service** — acceptable for a local MVP, listed as future work in Section 9. The service cannot read the database, so the blast radius of this gap is limited to CPU time.
-- **Request size** — the 5 MB limit is checked in the service as well as in the frontend, so calling the API directly with `curl` cannot bypass it.
+| Table | Student | Doctor | Admin |
+| --- | --- | --- | --- |
+| `profiles` | read/update own row | read own row + names of students on own exams | full access (role, `is_active`) |
+| `subjects` | read all | read all | read + write |
+| `exams` | read only where `is_active` and inside `start_time`/`end_time` | full on `created_by = auth.uid()` | read all |
+| `questions` | read for visible exams | full on own exams | read all |
+| `options` | read `id, question_id, option_text` only - **never `is_correct`** | full on own exams | read all |
+| `attempts` | read/insert own rows only | read rows of own exams | read all |
+| `answers` | read own, insert via the RPC only | read answers of own exams | read all |
+| `security_logs` | insert own events, read own events | same | same (plus read all if the admin view needs it) |
 
-### 4.6 How the frontend builds the `FormData`
+Two consequences worth saying out loud in the defence:
 
-The signature is `analyzeCv(cvFile, job)` and `cvFile` is a `File` or a `Blob`. When the user just picked a file in the Profile page, the `File` from the input can be passed straight through; when only a storage path is available, `profileService.downloadCv(cvPath)` returns the `Blob` first. Critically, the request must **not** set the `Content-Type` header: the browser must generate it because it contains the multipart boundary.
+- A student who forces `/admin/users` in the browser sees an empty table, because the policy - not the router - decides. The router check only avoids a broken-looking screen.
+- `options.is_correct` is unreachable from the student's session, so the score cannot be computed in the browser. That is why grading is an RPC.
 
-```js
-// services/aiService.js  (illustration only)
-import { AI_SERVICE_URL } from '../lib/supabaseClient.js';
+### 4.3 Why grading is a Postgres function
 
-const formData = new FormData();
-formData.append('cv', cvFile, 'cv.pdf');            // third argument = the upload filename
-formData.append('required_skills', job.required_skills);
-formData.append('description', job.description);
+The requirement "automatic grading" and the requirement "students can never read the answer key" cannot both be satisfied in JavaScript. The resolution:
 
-// No headers object here. The browser sets multipart/form-data plus its boundary.
-const response = await fetch(`${AI_SERVICE_URL}/analyze`, { method: 'POST', body: formData });
+1. `TakeExam.jsx` collects `[{ questionId, selectedOptionId }]`.
+2. `attemptsService.submitAttempt()` calls `supabase.rpc('submit_attempt', { p_attempt_id, p_answers, p_auto_submitted })`.
+3. `submit_attempt` (security definer) inserts the answers, compares each to `options.is_correct`, sums `questions.marks`, writes `attempts.score`, `submitted_at` and `status`, and returns `{ score, total, correct_count, question_count }`.
+4. `utils/gradeExam.js` implements the same rule in JavaScript. It is not the grading path: it is the reference implementation used by the doctor's preview, by `gradingService.getExamTotalMarks()`, and by the offline checks that prove the SQL and the JS agree.
+
+### 4.4 Query rules for services
+
+- Every exported function that talks to the database returns `{ data, error }` and never throws.
+- A page decides what to render from `error` and from an empty `data` array; that is how loading / empty / error states stay separate.
+- The user id is read inside the service (`supabase.auth.getUser()`), never passed in from a page, so a page cannot accidentally query for somebody else.
+- Columns are listed explicitly. `select('*')` is acceptable only where the whole row is genuinely needed (`exams`, `profiles`).
+
+---
+
+## 5. Exam flow and grading rules
+
+### 5.1 The student flow, end to end
+
+1. `Exams.jsx` → `examsService.getAvailableExams()` → cards with subject, duration, marks and status.
+2. `ExamDetails.jsx` → `getExamById()` + `attemptsService.getOpenAttempt()`; if an attempt is still open, the button becomes "Continue exam"; if a submitted attempt exists, it becomes "Already attempted".
+3. "Start" → `attemptsService.startAttempt(examId)` inserts the `attempts` row (`status: 'in_progress'`, `started_at: now()`). A duplicate is a `23505` unique violation; the service then returns the existing open attempt instead of failing.
+4. `TakeExam.jsx` → `getExamQuestionsWithoutAnswers()` (no answer key), one question per screen with four options.
+5. On every selection `saveAnswer()` upserts into `answers`, so a refresh loses nothing.
+6. Submit (manual or by timeout) → `submitAttempt()` → RPC grades and closes the attempt → navigate to `/my-results`.
+7. `MyResults.jsx` → `resultsService.getMyResults()` → score, percentage, pass/fail.
+
+### 5.2 Timer, auto-submit and resume
+
+- Deadline is **not** a client counter. It is `attempts.started_at + exams.duration_minutes`.
+- On mount, `remaining = deadline - now`. That single formula gives both the countdown and resume-after-refresh for free: a refresh simply recomputes a smaller number.
+- `setInterval` ticks once per second inside a `useEffect` whose cleanup calls `clearInterval`. A missing cleanup is the classic defence question and a real leak.
+- When `remaining <= 0` the page submits once, with `autoSubmitted: true`, which stores `status = 'auto_submitted'`. A `useRef` guard prevents a double submit when the interval fires twice before the UI unmounts.
+- If the tab was closed for longer than the exam duration, the deadline has already passed: submit immediately with whatever answers were saved.
+- Answers already saved are still graded, so a timeout never destroys partial work.
+
+### 5.3 Grading rule (MCQ only, the MVP)
+
+```
+score = Σ marks(q)   for every question q whose selected option has is_correct = true
+total = Σ marks(q)   for every question q in the exam
+percentage = round(100 * score / total)        // total > 0 by constraint
+pass = percentage >= 50
 ```
 
-Passing `'cv.pdf'` as the third argument gives the service a filename even when `cvFile` is a `Blob` with no name. The service ignores that filename and trusts only the bytes.
+Unanswered questions count as wrong, never as an error. The worked example the two implementations must reproduce:
+
+| Question | Marks | Selected | Correct? | Points |
+| --- | --- | --- | --- | --- |
+| Q1 | 2 | B | yes | 2 |
+| Q2 | 2 | A | no | 0 |
+| Q3 | 3 | — | unanswered | 0 |
+| Q4 | 3 | D | yes | 3 |
+| Q5 | 2 | C | yes | 2 |
+| **Total** | **12** | | | **7** |
+
+`score = 7`, `total = 12`, `percentage = 58`, result **pass**. `exams.total_marks` must equal 12; `validateExam()` refuses the exam otherwise.
+
+### 5.4 What "one attempt only" means in code
+
+Three layers, in increasing strength: the button says "Already attempted" → `getOpenAttempt()` refuses to start a second one → `unique(exam_id, student_id)` rejects the insert even if the first two are bypassed. Only the third layer is security; the other two are courtesy.
 
 ---
 
-## 5. Scoring algorithm
-
-The algorithm lives entirely in `ai-service/main.py` and is deterministic: the same CV and the same job always produce the same score. That determinism is worth saying out loud during the defense.
-
-### 5.1 Steps
-
-1. **Validate** the upload — size, magic bytes, content type, extension, and non-empty `required_skills` / `description`. Reject early with the codes from Section 4.4.
-2. **Extract text** — `fitz.open(stream=raw_bytes, filetype="pdf")`, then join `page.get_text()` for every page. If the joined string is shorter than a small threshold (about 30 characters), return `EMPTY_OR_UNREADABLE_PDF`.
-3. **Normalize** — lower-case the text, collapse whitespace, and keep the raw character count in `extracted_chars`.
-4. **Parse the skill list** — split `required_skills` on commas, trim each item, lower-case, drop duplicates and empties. The order of first appearance is preserved for the response.
-5. **Skill coverage** — for each required skill, test the normalized CV text with a case-insensitive word-boundary regex, built with `re.escape` so that skills containing `.`, `+`, or `#` behave. `skill_coverage = matched / total`.
-6. **TF-IDF cosine similarity** — `TfidfVectorizer(stop_words="english")` fitted on the two documents `[cv_text, description]`, then `cosine_similarity` of row 0 against row 1. Cosine is `0.0` when either side has no usable tokens, and that case must not raise.
-7. **Combine** — `match_score = round(100 * (0.7 * skill_coverage + 0.3 * cosine))`, clamped to `0..100`. Skills carry 70% because a job posting's explicit requirements are the most defensible signal; free-text similarity carries 30% because it captures seniority and domain wording.
-8. **Strengths** — build in this order, then truncate to 6:
-   - `"Skill match: <skill>"` for each matched skill, up to 4 items.
-   - If `cosine >= 0.35`: `"Resume wording closely matches the job description"`.
-   - If the candidate matched at least half the required skills: `"Covers the core technical requirements of this role"`.
-   - If the CV text is longer than 2,000 characters: `"Resume is detailed enough for a full review"`.
-9. **Weaknesses** — build in this order, then truncate to 6:
-   - `"Missing skill: <skill>"` for each missing skill, up to 4 items.
-   - If `cosine < 0.20`: `"Resume wording differs noticeably from the job description"`.
-   - If `extracted_chars < 1000`: `"Resume text is short; add more detail about projects and results"`.
-   - If the candidate matched no required skills: `"None of the required skills were found in the resume"`.
-
-Both lists are plain `list[str]`, which is exactly what the `ai_strengths` and `ai_weaknesses` JSONB columns store.
-
-### 5.2 Worked example
-
-Job: `required_skills = "python,sql,git,docker"`, description about a backend role using Python, SQL, and Docker.
-
-- Required skills after parsing: `["python", "sql", "git", "docker"]` — 4 items.
-- The CV mentions Python, SQL, and Git, but not Docker: matched `3`, missing `["docker"]`.
-- `skill_coverage = 3 / 4 = 0.75`.
-- TF-IDF cosine between the CV text and the description measures `0.41`.
-- `match_score = round(100 * (0.7 * 0.75 + 0.3 * 0.41)) = round(100 * (0.525 + 0.123)) = round(64.8) = 65`.
-- Strengths: three `Skill match:` lines, plus the wording line because `0.41 >= 0.35`, plus the core-requirements line because `3 / 4 >= 0.5`. That is 5 items, under the cap.
-- Weaknesses: `Missing skill: docker`, plus the wording line is *not* added because `0.41` is not below `0.20`. 1 item.
-
-Verifying that arithmetic by hand is a likely defense question, so keep the formula in one commented line and nothing else.
-
-### 5.3 Why this is AI and not a lookup
-
-TF-IDF is a classic information-retrieval model: it weights terms by how often they appear and how rare they are across the two documents, then measures the angle between the two vectors. The course defense should state the limitation honestly — it is lexical, not semantic, so "Postgres" and "PostgreSQL" only match if both appear as written. Section 9 records this.
-
----
-
-## 6. Database
+## 6. Database setup and verification
 
 ### 6.1 Setup order
 
-1. Create the Supabase project and copy the **Project URL** and **anon public key** into `frontend/.env` (and the matching names into `frontend/.env.example`, without real values).
-2. In Authentication → Providers → Email, turn **email confirmation off** for the demo. Without this, a newly registered user has no session and every protected route bounces to `/login`.
-3. Run `database/01_schema.sql` in the SQL editor — tables, foreign keys, constraints, the profile trigger.
-4. Run `database/02_rls.sql` — enable RLS on all four tables and create every policy.
-5. Run `database/03_storage.sql` — create the private `cvs` bucket and its storage policies.
-6. Run `database/04_seed_jobs.sql` — insert the demo jobs with five quiz questions each.
+1. Create the Supabase project; copy the URL and anon key into `frontend/.env`.
+2. Run `database/01_schema.sql` (tables, indexes, trigger, `submit_attempt`).
+3. Run `database/02_rls.sql` (helper functions, RLS, policies).
+4. Run `database/04_seed_exams.sql` (2 subjects, 2 exams, 5 questions each).
+5. Authentication → Providers → Email → disable *Confirm email* for the demo.
+6. Register three accounts (student, doctor, admin), then promote two of them with `update public.profiles set role = ...`.
+7. Paste the four verification results from 6.5 into the pull request.
 
-Run them in this order every time a fresh project is created, and never re-run a later file against a schema that was changed by hand. If a table needs a change, edit `01_schema.sql` (or add `05_...sql`) and tell the team, so nobody's local project drifts.
+### 6.2 Column reference
 
-### 6.2 Table reference
+See 4.1. Treat it as the contract: no page or service may invent a column that is not listed there.
 
-**`profiles`**
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | `uuid` PK | References `auth.users(id)` `on delete cascade` |
-| `full_name` | `text` | Default `''` |
-| `job_title` | `text` | Default `''` |
-| `cv_url` | `text` | Nullable; stores the storage **path**, e.g. `a1b2.../cv.pdf`, not a URL |
-| `updated_at` | `timestamptz` | Default `now()` |
-
-**`jobs`**
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | `uuid` PK | `default gen_random_uuid()` |
-| `title` | `text` | Not null |
-| `company_name` | `text` | Not null |
-| `location` | `text` | Not null |
-| `description` | `text` | Not null |
-| `required_skills` | `text` | Not null, comma-separated, e.g. `python,sql,git` |
-| `quiz_questions` | `jsonb` | Not null, array of 5 objects: `{question, options: [4 strings], correctIndex}` |
-| `created_at` | `timestamptz` | Default `now()` |
-
-**`applications`**
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | `uuid` PK | `default gen_random_uuid()` |
-| `user_id` | `uuid` | References `profiles(id)` `on delete cascade` |
-| `job_id` | `uuid` | References `jobs(id)` `on delete cascade` |
-| `quiz_score` | `integer` | Check `between 0 and 5` |
-| `ai_match_score` | `integer` | Check `between 0 and 100` |
-| `ai_strengths` | `jsonb` | Default `'[]'` |
-| `ai_weaknesses` | `jsonb` | Default `'[]'` |
-| `status` | `text` | Default `'Submitted'` |
-| `created_at` | `timestamptz` | Default `now()` |
-| — | constraint | `unique (user_id, job_id)` |
-
-**`security_logs`**
-
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | `uuid` PK | `default gen_random_uuid()` |
-| `user_email` | `text` | No foreign key — failed logins have no `auth.users` row |
-| `event_type` | `text` | `LOGIN_SUCCESS`, `LOGIN_FAILED`, `LOGOUT`, `CV_UPLOADED`, `INVALID_FILE_BLOCKED`, `APPLICATION_SUBMITTED` |
-| `details` | `text` | Short human-readable context, never a password or token |
-| `created_at` | `timestamptz` | Default `now()` |
-
-There is deliberately no `updated_at` on `security_logs`: the table is append-only, and RLS enforces that by never granting UPDATE or DELETE.
-
-### 6.3 Schema snippet (`01_schema.sql`, shape only)
+### 6.3 Signup trigger (shape only)
 
 ```sql
-create table if not exists public.profiles (
-  id uuid primary key references auth.users (id) on delete cascade,
-  full_name text not null default '',
-  job_title text not null default '',
-  cv_url text,
-  updated_at timestamptz not null default now()
-);
+create function public.handle_new_user() returns trigger
+  language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.profiles (id, full_name, email, role)
+  values (new.id,
+          coalesce(new.raw_user_meta_data ->> 'full_name', ''),
+          new.email,
+          'student');            -- hard-coded: never taken from the request
+  return new;
+end; $$;
 
-create table if not exists public.applications (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles (id) on delete cascade,
-  job_id uuid not null references public.jobs (id) on delete cascade,
-  quiz_score integer not null check (quiz_score between 0 and 5),
-  ai_match_score integer not null check (ai_match_score between 0 and 100),
-  ai_strengths jsonb not null default '[]'::jsonb,
-  ai_weaknesses jsonb not null default '[]'::jsonb,
-  status text not null default 'Submitted',
-  created_at timestamptz not null default now(),
-  unique (user_id, job_id)
-);
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
 ```
 
-Everything else in the file follows the same shape: table, then constraints, then `alter table ... enable row level security` is **not** here — it belongs in `02_rls.sql` so the two concerns stay readable separately.
+`security definer` is essential: the insert happens before any session exists, so RLS would otherwise reject it. The hard-coded role is what stops a visitor from registering as a doctor.
 
-### 6.4 Profile trigger snippet
+### 6.4 RLS checklist
 
-A row must exist in `profiles` the moment a user signs up, otherwise the first `update` from the Profile page silently updates zero rows. Doing it with a trigger avoids a race in which the browser tries to insert the row before the session exists.
+For every table: `alter table ... enable row level security;` then one policy per cell of the matrix in 4.2. Two helper functions keep the policies readable and avoid recursion:
 
 ```sql
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer set search_path = public
-as $$
-begin
-  insert into public.profiles (id, full_name)
-  values (new.id, coalesce(new.raw_user_meta_data ->> 'full_name', ''));
-  return new;
-end;
+create function public.current_role() returns text
+  language sql stable security definer as $$
+    select role from public.profiles where id = auth.uid();
 $$;
 
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-after insert on auth.users
-for each row execute function public.handle_new_user();
+create function public.owns_exam(p_exam_id uuid) returns boolean
+  language sql stable security definer as $$
+    select exists (select 1 from public.exams e
+                   where e.id = p_exam_id and e.created_by = auth.uid());
+$$;
 ```
 
-`security definer` is required because the inserting role during signup cannot write to `public.profiles` under RLS. The `set search_path = public` clause is the standard hardening for a `security definer` function.
+Policies on `profiles` must call `current_role()` rather than querying `profiles` again - a policy that selects from its own table recurses and fails at insert time.
 
-### 6.5 RLS policy snippet (`02_rls.sql`, shape only)
+### 6.5 Two-user verification test
 
-```sql
-alter table public.profiles enable row level security;
+Run it after `02_rls.sql`, with three accounts, and record the result:
 
-drop policy if exists "profiles_select_own" on public.profiles;
-create policy "profiles_select_own" on public.profiles
-for select to authenticated
-using (auth.uid() = id);
-```
+1. As the student: `select('is_correct').from('options')` → must be denied. This is the headline security result.
+2. As the student: `select().from('attempts').eq('student_id', <other student id>)` → `[]`.
+3. As the student: insert an attempt with `student_id` of somebody else → rejected by `with check`.
+4. As the doctor: read attempts of an exam they did not create → `[]`.
+5. As the doctor: update another doctor's exam → zero rows affected.
+6. As the admin: read all profiles → allowed; the student doing the same → only their own row.
+7. Signed out: read `exams` → `[]`; insert a `LOGIN_SUCCESS` row into `security_logs` → rejected (anon may only write `LOGIN_FAILED`).
 
-Every other policy in the file is written the same way: `drop policy if exists`, then `create policy`, with the role named explicitly and the rule in `using` for reads / `with check` for writes.
-
-### 6.6 RLS policy matrix
-
-| Table | SELECT | INSERT | UPDATE | DELETE |
-| --- | --- | --- | --- | --- |
-| `profiles` | `authenticated`, `auth.uid() = id` | `authenticated`, `auth.uid() = id` | `authenticated`, `auth.uid() = id` (both `using` and `with check`) | none — no policy, so denied |
-| `jobs` | `authenticated` only, no row filter | none | none | none |
-| `applications` | `authenticated`, `auth.uid() = user_id` | `authenticated`, `auth.uid() = user_id` | none — scores must not be client-editable | none |
-| `security_logs` | `authenticated`, `user_email = auth.jwt() ->> 'email'` | `anon` and `authenticated` | none | none |
-| `storage.objects` (`cvs` bucket) | `authenticated`, `(storage.foldername(name))[1] = auth.uid()::text` | same folder rule, `bucket_id = 'cvs'` | same folder rule | none |
-
-Notes on the matrix:
-
-- An anonymous visitor cannot read `jobs`. The feed is behind login on purpose, which keeps the demo to one clear rule: unauthenticated means nothing.
-- `applications` has no UPDATE policy at all. A candidate cannot rewrite their own `ai_match_score` after submission, even though they inserted the row themselves. This is a real, explainable consequence of RLS.
-- Reads of `security_logs` are filtered by the email claim inside the caller's JWT, so a user sees only their own history without any joins.
-
-### 6.7 Why `security_logs` allows INSERT for `anon`
-
-The most interesting log entry in the whole project is `LOGIN_FAILED`. A failed login happens **before** a session exists, so the insert arrives with no JWT and the role `anon`. If `anon` could not insert, the failure would be silent and the security demonstration would be impossible.
-
-That permission is narrowed rather than given away:
-
-```sql
-drop policy if exists "security_logs_insert_anon_failure" on public.security_logs;
-create policy "security_logs_insert_anon_failure" on public.security_logs
-for insert to anon
-with check (event_type = 'LOGIN_FAILED' and length(details) <= 500);
-
-drop policy if exists "security_logs_insert_authenticated" on public.security_logs;
-create policy "security_logs_insert_authenticated" on public.security_logs
-for insert to authenticated
-with check (event_type in ('LOGIN_SUCCESS', 'LOGOUT', 'CV_UPLOADED', 'INVALID_FILE_BLOCKED', 'APPLICATION_SUBMITTED'));
-```
-
-Consequences to state in the defense: an anonymous caller can create only failure rows, cannot read them back, cannot edit or delete anything, and is limited in payload length. The remaining honest weakness is that an anonymous attacker could spam failure rows; the mitigation for production is a server-side logging function with rate limiting, noted in Section 9.
-
-### 6.8 Storage decision
-
-- Bucket `cvs`, **private** (`public = false`). The specification allowed a public bucket; private was chosen because a CV is personal data and the security course rewards that choice. The frontend reads the file with `storage.download()` and, where a link is needed, `storage.createSignedUrl(path, 60)`.
-- Object path is always `{user_id}/cv.pdf`. One CV per user; a re-upload uses `upsert: true` so it replaces the previous file instead of accumulating duplicates.
-- Bucket limits: `file_size_limit = 5242880`, `allowed_mime_types = ARRAY['application/pdf']`. These are enforced by Supabase itself, so even a direct API call with the anon key cannot store a `.exe`.
-- Storage policies use `storage.foldername(name)`, which splits the object path on `/`. Element `[1]` is the first folder, so `auth.uid()::text` must equal it. This is what makes "User B cannot read User A's CV" true at the storage layer, not just in the UI.
-
-### 6.9 Two-user RLS verification test
-
-Run this by hand after `02_rls.sql` and `03_storage.sql`, and record the result in the pull request description. This is the single most valuable piece of evidence for the security part of the grade.
-
-1. Create user A (`a@test.local`) and user B (`b@test.local`) through the Register page, with different passwords.
-2. Signed in as A: fill in the profile, upload a CV, apply to one job. Note the application id.
-3. Signed in as B: open `/applications` and `/security` — both must be empty of A's data. Open `/profile` — the CV field must be empty.
-4. Signed in as B, in the browser console run each of these and confirm the returned `data` array is empty (`[]`) while `error` is `null`, because RLS filtered the rows rather than raising:
-   ```js
-   // Paste into the console on the running app while signed in as B.
-   await supabase.from('profiles').select('*')
-   await supabase.from('applications').select('*')
-   await supabase.from('security_logs').select('*')
-   await supabase.storage.from('cvs').list('')       // must not contain A's folder
-   ```
-5. Signed in as B, attempt a forged insert — confirm the insert fails with a policy violation, not a success:
-   ```js
-   // Replace with A's real user id. Must fail.
-   await supabase.from('applications').insert({ user_id: '<A_USER_ID>', job_id: '<JOB_ID>', quiz_score: 5, ai_match_score: 100 })
-   ```
-6. Signed in as B, attempt to update A's profile — must affect zero rows:
-   ```js
-   await supabase.from('profiles').update({ full_name: 'hacked' }).eq('id', '<A_USER_ID>')
-   ```
-7. Signed out, attempt to read jobs and to insert a non-failure log — the first must return `[]`, the second must fail the `with check`:
-   ```js
-   await supabase.from('jobs').select('*')
-   await supabase.from('security_logs').insert({ user_email: 'x@y.z', event_type: 'LOGIN_SUCCESS', details: 'forged' })
-   ```
-8. Sign in as B with a wrong password, then sign in as A and open `/security` — a `LOGIN_FAILED` row for `b@test.local` must be visible only to B, not to A.
-
-If any step behaves differently, the policy in `02_rls.sql` is wrong; fix the policy, not the test.
+If a step behaves differently, fix the policy, not the test.
 
 ---
 
@@ -535,169 +358,139 @@ If any step behaves differently, the policy in `02_rls.sql` is wrong; fix the po
 
 ### 7.1 M0 — Kickoff (already in the repository)
 
-Milestone names used across the project, matching the `TODO(Member ... Milestone Mx)` headers already in the files:
+Milestone names used across the project, matching the `TODO(Name, memberN - Milestone MN)` headers already in the files:
 
-- **M0** — this scaffold commit.
-- **M1** — Ahmed Hany (`member1`): schema, RLS, storage, auth, profile, security log.
-- **M2** — Ibrahim Lotfy (`member2`): job seeds, job feed, job details, quiz.
-- **M3** — Ahmed Fayez (`member3`): AI service call, submission pipeline, applications dashboard.
-- **M4** — Ibrahim Abduljawad (`member4`): the Python service and its tests.
-- **M5** — integration, end-to-end test, defense rehearsal (Section 8).
+- **M0** — this migrated scaffold.
+- **M1** — Ahmed Hany (`member1`): schema, RLS, auth, login/register, security log.
+- **M2** — Ibrahim Lotfy (`member2`): exam list, exam details, timed exam, results, profile.
+- **M3** — Ahmed Fayez (`member3`): attempts service, exam validation, shell components, doctor dashboard, exam creation, exam results.
+- **M4** — Ibrahim Abduljawad (`member4`): grading, results service, profile service, admin pages, seed data, audit view.
+- **M5** — integration, end-to-end test, defence rehearsal (Section 8).
 
 Already complete in M0 — read it, do not rewrite it:
 
-- `README.md`, `PLAN.md`, `.gitignore`.
-- `src/lib/supabaseClient.js`: the single client, plus the `isSupabaseConfigured` flag and the `AI_SERVICE_URL` constant.
-- `src/main.jsx` (`BrowserRouter` → `AuthProvider` → `App`) and `src/App.jsx` (the route table plus the unknown-URL redirect).
-- `src/components/ProtectedRoute.jsx`, `src/components/Loader.jsx`, `Loader.css`, `src/components/Navbar.jsx`, `Navbar.css`, `src/components/ProgressBar.jsx`, `ProgressBar.css`, `src/index.css`.
-- `frontend/vite.config.js` (port 5173 with `strictPort`, matching the CORS origin), `frontend/.env.example`, `frontend/package.json` (React 18, React Router 6, supabase-js 2; no test runner, no UI library), `frontend/index.html`.
-- `src/context/AuthContext.jsx` is partly done: it loads the session, subscribes to `onAuthStateChange`, and exposes `loading` and `signOut`. Ahmed Hany (member1) adds `signIn` and `signUp`.
-- Every function in the five `services/` files already exists with its final name, signature, and JSDoc; the bodies throw `"... is not implemented yet"`. Implement the bodies, do not rename them.
-- `ai-service/main.py` and `ai-service/tests/test_analyze.py` are real, working code: a contract-shaped stub that validates input, returns derived fake numbers, and already passes six tests. Ibrahim Abduljawad (member4) replaces the fake parts in his own checklist (Section 7).
-- Still placeholders with a `TODO(Member ...)` header: the four `database/*.sql` files, every `pages/*.jsx`, and the three `utils/`.
-- Branches `member1` to `member4`, all cut from the same `main` commit.
+- `README.md`, `PLAN.md`, `.gitignore`, `.gitattributes`.
+- `src/lib/supabaseClient.js` (single client + `isSupabaseConfigured`), `src/main.jsx`, `src/App.jsx` (route table, `RoleRedirect`, `HOME_BY_ROLE`), `src/index.css`.
+- `src/context/AuthContext.jsx` is partly done: session loading, `onAuthStateChange`, `role` loading through `profileService.getProfile()`, `signOut`. Ahmed Hany adds `signIn`, `signUp`, `refreshRole`.
+- `src/components/ProtectedRoute.jsx` with the `allow` role list; `Navbar`, `Loader`, `ProgressBar` working.
+- Every `services/*` and `utils/*` file exists with its final name, signature and JSDoc; bodies throw `"... is not implemented yet (Name - memberN, Milestone MN)"`.
+- Every page exists as a placeholder naming its owner and listing its TODOs.
+- `database/01_schema.sql` and `02_rls.sql` document all eight tables, the trigger, the RPC and the full policy matrix.
+- Branches `member1`–`member4`, all cut from the same `main` commit.
 
-Function names fixed by the scaffold (use these exactly):
+Function names fixed by the scaffold (use these exactly; a rename must update every caller and this table):
 
-| File | Owner | Functions |
-| --- | --- | --- |
-| `services/securityLogService.js` | Ahmed Hany (member1) | `logSecurityEvent({ eventType, details, email })`, `getMySecurityLogs()` |
-| `services/profileService.js` | Ahmed Hany (member1) | `getProfile()`, `updateProfile(updates)`, `uploadCv(file)`, `downloadCv(cvPath)` |
-| `services/jobsService.js` | Ibrahim Lotfy (member2) | `getJobs()`, `getJobById(jobId)` |
-| `services/aiService.js` | Ahmed Fayez (member3) | `analyzeCv(cvFile, job)`, constant `AI_ERROR_MESSAGES` |
-| `services/applicationsService.js` | Ahmed Fayez (member3) | `submitApplication({ jobId, quizScore, aiMatchScore, aiStrengths, aiWeaknesses })`, `getMyApplications()`, `hasApplied(jobId)` |
-| `ai-service/main.py` | Ibrahim Abduljawad (member4) | `POST /analyze`, `GET /health` |
+| File | Functions |
+| --- | --- |
+| `services/securityLogService.js` | Ahmed Hany (member1) — `logSecurityEvent({ eventType, details, email })`, `getMySecurityLogs()` |
+| `services/examsService.js` | Ibrahim Lotfy (member2) — `getAvailableExams()`, `getExamById(examId)`, `getExamQuestionsWithoutAnswers(examId)` |
+| `services/attemptsService.js` | Ahmed Fayez (member3) — `startAttempt(examId)`, `getOpenAttempt(examId)`, `saveAnswer(attemptId, questionId, selectedOptionId)`, `submitAttempt(attemptId, answers, options)` |
+| `services/gradingService.js` | Ibrahim Abduljawad (member4) — `gradeAnswers(questions, answers)`, `getExamTotalMarks(questions)`, `calculatePercentage(score, total)` |
+| `services/resultsService.js` | Ibrahim Abduljawad (member4) — `getMyResults()`, `getExamResultsForDoctor(examId)`, `getAttemptReview(attemptId)` |
+| `services/profileService.js` | Ibrahim Abduljawad (member4) — `getProfile()`, `updateProfile(updates)`, `listUsers({ role })`, `updateUserRole(userId, role)`, `setUserActive(userId, isActive)` |
+| `utils/filterExams.js` | Ibrahim Lotfy (member2) — `filterExams(exams, query, subjectId)`, `getExamStatus(exam, now)` |
+| `utils/validateExam.js` | Ahmed Fayez (member3) — `validateExam(draft)`, `sumQuestionMarks(questions)`, `MCQ_OPTION_COUNT` |
+| `utils/gradeExam.js` | Ibrahim Abduljawad (member4) — `gradeExam(questions, answers)` |
 
-Each service reads the user id itself from `supabase.auth.getUser()`, so no page passes a user id in. That keeps the RLS story simple: the client can only ever act as the logged-in user.
-
-Rules for all four owners - Ahmed Hany (`member1`), Ibrahim Lotfy (`member2`), Ahmed Fayez (`member3`), Ibrahim Abduljawad (`member4`): one branch each, no direct commits to `main`, pull requests only after your own checklist is done and `npm run dev` starts cleanly.
+Rules for all four owners - Ahmed Hany (`member1`), Ibrahim Lotfy (`member2`), Ahmed Fayez (`member3`), Ibrahim Abduljawad (`member4`): one branch each, no direct commits to `main`, pull requests only after your own checklist is done and `npm run build` passes.
 
 ### Ahmed Hany — Team Lead, Database, Auth & Security (branch `member1`)
 
-1. [ ] Create the Supabase project. Copy the URL and anon key into `frontend/.env`, restart the dev server, and confirm the configuration warning banner in `App.jsx` disappears.
+**Hard challenge: RLS + three roles + the signup trigger.** He does not own the admin pages, the profile page or the navbar.
+
+1. [ ] Create the Supabase project; put the URL and anon key in `frontend/.env`; confirm the warning banner in `App.jsx` disappears.
    - Done when: `/login` renders and the banner is gone.
-2. [ ] Write `database/01_schema.sql`: the four tables from Section 6.2 in dependency order (`profiles`, `jobs`, `applications`, `security_logs`), with all checks, the `unique (user_id, job_id)` constraint, and the `handle_new_user` trigger from Section 6.4. Run it in the SQL editor.
-   - Done when: Table Editor shows four tables and the trigger appears under Database → Triggers.
-3. [ ] Write `database/02_rls.sql` using the matrix in Section 6.6, including the narrowed `anon` insert policy from Section 6.7. Run it and confirm the Table Editor shows RLS enabled with a warning badge on every table.
-   - Done when: each of the four tables lists its policies and none says "RLS disabled".
-4. [ ] Write `database/03_storage.sql`: create the private `cvs` bucket with `file_size_limit` and `allowed_mime_types`, then the three folder-prefix policies. Run it.
-   - Done when: Storage shows `cvs` marked private with 5 MB in the size column.
-5. [ ] Extend `src/context/AuthContext.jsx` with `signIn(email, password)` (wrapping `supabase.auth.signInWithPassword`) and `signUp(email, password, fullName)` (wrapping `supabase.auth.signUp` with `options: { data: { full_name: fullName } }` so the trigger in Section 6.4 can fill the profile). Expose both on the context value next to `signOut`.
-   - Done when: after a refresh on `/profile` the user stays signed in, and a new signup produces a `profiles` row with the name already filled in.
-6. [ ] Implement `logSecurityEvent({ eventType, details, email })` in `src/services/securityLogService.js`, keeping the signature already in the file: fall back to `supabase.auth.getUser()` when `email` is empty, insert one row, and never throw to the caller (a failed log must not break the login flow). Comment why the failure is swallowed rather than propagated.
-   - Done when: calling it from the console creates exactly one visible row for that email.
-7. [ ] Optional polish in `src/components/Navbar.jsx`, which is already complete: replace the raw email with the user's `full_name` from `profiles` (through `profileService.getProfile()`), falling back to the email when the name is empty.
-   - Done when: the header shows the saved name after the Profile page is updated, and still shows the email before any name is set.
-8. [ ] Build `pages/Login.jsx` and `Login.css`: call `signIn` from the context, call `logSecurityEvent` with `LOGIN_SUCCESS` or `LOGIN_FAILED` on every attempt, show one generic message on any failure ("Email or password is incorrect.") so the form never reveals which accounts exist, and after success navigate to `location.state?.from ?? '/'`.
-   - Done when: a correct password lands on the page the user originally asked for, and a wrong password shows the generic message plus one `LOGIN_FAILED` row.
-9. [ ] Build `pages/Register.jsx` and `Register.css`: call `signUp` with email, password, and full name, show a clear message when Supabase returns an error, and navigate to `/profile` on success.
-   - Done when: registering creates an auth user and a matching `profiles` row whose `full_name` is already set.
-10. [ ] Implement `src/utils/validateCvFile.js` as a pure function returning `{ valid, error }` (the shape documented in the shipped JSDoc), checking extension, MIME type, and a `size < 5 * 1024 * 1024` limit. Then implement the bodies of `getProfile()`, `updateProfile(updates)`, `uploadCv(file)`, and `downloadCv(cvPath)` in `src/services/profileService.js`, keeping their existing signatures (path `{userId}/cv.pdf`, `upsert: true`, then an `update` writing that path into `cv_url`).
-    - Done when: all four functions work from the console while signed in.
-11. [ ] Build `pages/Profile.jsx` and `Profile.css` on top of `profileService`: show the email read-only, editable name and job title, a file input, and a "current CV" line. Route every file through `validateCvFile` first: on failure show its message and call `logSecurityEvent({ eventType: 'INVALID_FILE_BLOCKED', ... })`; on success upload and log `CV_UPLOADED`.
-    - Done when: the name and job title survive a refresh, the object exists at `{USER_ID}/cv.pdf`, `cv_url` equals that path, and picking a `.png` shows the file-type message, logs `INVALID_FILE_BLOCKED`, and uploads nothing.
-12. [ ] Build `pages/SecurityActivity.jsx` and its CSS on top of `getMySecurityLogs()`: a plain table with event type, details, and timestamp, newest first, and a friendly empty state. Then run the Section 6.9 verification script and paste the results into your pull request.
-    - Done when: the page lists only the signed-in user's events and the two-user test passes every step.
+2. [ ] Write `database/01_schema.sql`: eight tables from 4.1 in dependency order, `unique(exam_id, student_id)`, `unique(attempt_id, question_id)`, the checks from 4.1, indexes on `exams(created_by)`, `attempts(exam_id)`, `attempts(student_id)`, `answers(attempt_id)`.
+   - Done when: the Table Editor shows eight tables and the foreign keys point the right way.
+3. [ ] Add the `handle_new_user` trigger and `submit_attempt(...)` (shape in 6.3 and 4.3) to the same file, then run it.
+   - Done when: a new signup produces a `profiles` row with `role = 'student'`, and the RPC appears under Database → Functions.
+4. [ ] Write `database/02_rls.sql`: `current_role()`, `owns_exam()`, RLS on all eight tables, one policy per matrix cell in 4.2, plus the narrowed `anon` INSERT for `LOGIN_FAILED`.
+   - Done when: every table shows a policy, none shows "RLS disabled".
+5. [ ] Extend `AuthContext.jsx` with `signIn(email, password)`, `signUp(email, password, fullName)` and `refreshRole()`, all writing to `security_logs` through `logSecurityEvent`.
+   - Done when: a refresh keeps the user signed in and a promotion to doctor is visible after `refreshRole()`.
+6. [ ] Implement `securityLogService.js` (`logSecurityEvent`, `getMySecurityLogs`); the writer must swallow its own error so a failed log never blocks a sign-in.
+   - Done when: one row appears per event and the caller never receives an exception.
+7. [ ] Build `Login.jsx` + `Login.css`: form, generic error message ("Email or password is incorrect"), `LOGIN_FAILED` on failure, redirect to `location.state?.from ?? '/'`.
+   - Done when: a wrong password logs one `LOGIN_FAILED` row and reveals nothing about the account.
+8. [ ] Build `Register.jsx` + `Register.css`: name/email/password/confirm, length + match validation, `signUp` with `options.data.full_name`, message explaining the student role.
+   - Done when: registering creates an auth user and a `profiles` row with `role = 'student'` without a second insert.
+9. [ ] Run the full verification in 6.5 and paste all seven results into the pull request.
+   - Done when: step 1 (a student cannot read `is_correct`) and step 7 (anon can only log failures) both pass.
 
-**Defense notes**
+**Defence notes** — why the anon key is public and safe; how `onAuthStateChange` + a `loading` flag prevent the login flicker; why the trigger is `security definer` and hard-codes the role; why `options.is_correct` needs a view or column list instead of a policy hack.
 
-- Why the anon key is public and safe, and why the service_role key must never reach the browser.
-- How `onAuthStateChange` plus a `loading` flag prevents the redirect flicker, and what happens if you drop the flag.
-- Why a `security definer` trigger is needed for profile creation, and why the CV bucket is private rather than public.
-- Why failed logins need an `anon` INSERT policy, and what the `with check` clause narrows.
+### Ibrahim Lotfy — Student Exams & Timed Exam (branch `member2`)
 
-### Ibrahim Lotfy — Jobs Feed & Timed Quiz (branch `member2`)
+**Hard challenge: timer + auto-submit + resume after a refresh.**
 
-1. [ ] Write `database/04_seed_jobs.sql`: eight jobs, each with a realistic `description`, a comma-separated `required_skills`, and a `quiz_questions` JSONB array of exactly five objects shaped `{question, options, correctIndex}` with four options each. Run it and ask Ahmed Hany (member1) to review it.
-   - Done when: `select count(*) from jobs` returns 8, and for every row `jsonb_array_length(quiz_questions) = 5` with `correctIndex` between 0 and 3.
-2. [ ] Implement `src/services/jobsService.js`: `getJobs()` returning all jobs newest first, and `getJobById(id)` returning a single row with `.single()`. Both return `{ data, error }` shaped results or throw a clean message — pick one convention and comment it.
-   - Done when: `getJobs()` from the console returns 8 rows while signed in and an empty array while signed out.
-3. [ ] Implement `src/utils/filterJobs.js` as a pure function `filterJobs(jobs, query)` with no imports: case-insensitive match against `title`, `company_name`, `location`, and `required_skills`. Split `required_skills` on commas for the skill part.
-   - Done when: an empty query returns all jobs, `"python"` returns only jobs listing python, and `"reac"` matches React jobs.
-4. [ ] Build `pages/Jobs.jsx` and `Jobs.css`: a controlled search input, a skill chip row that sets the query, a card grid, a result count, and an empty state ("No jobs match your search."). Use `useState` + `useEffect` and the pure filter from task 3, not a new library.
-   - Done when: typing filters the grid immediately with no refetch, and clearing the input restores all eight cards.
-5. [ ] Build `pages/JobDetails.jsx` and `JobDetails.css`: load by `useParams().jobId`, show company, location, description, and the required skills as chips. Guard against a missing job with a "Job not found" state. The Apply button navigates to `/jobs/:jobId/quiz`, and is disabled with "You have already applied" when `hasApplied(jobId)` from `src/services/applicationsService.js` returns true.
-   - Done when: a bad id in the URL shows the not-found state instead of a blank page, and the Apply button is disabled for a job already applied to.
-   - Cross-owner note: `hasApplied()` belongs to Ahmed Fayez (member3) and throws until his branch lands, so wrap the call in `try/catch` and treat a throw as `false` for now.
-6. [ ] Implement `src/utils/scoreQuiz.js` as a pure function `scoreQuiz(questions, answers)` comparing `answers[i]` to `questions[i].correctIndex` and returning an integer `0..5`. Comment the assumption that both arrays are the same length.
-   - Done when: an all-correct answer array returns 5, an all-wrong one returns 0, and an unanswered entry counts as wrong rather than throwing.
-7. [ ] Build the quiz state in `pages/Quiz.jsx`: shuffle nothing, keep a `currentIndex` and an `answers` array of length 5 initialized to `-1`, with Next and Previous navigation and a progress line ("Question 3 of 5"). Disable Next until an option is selected.
-   - Done when: you can move forward and back and previously selected answers stay selected.
-8. [ ] Add the timer: a `useState` seconds counter of 300, a `setInterval` inside a `useEffect` with a cleanup function that clears it, and an auto-submit path when it reaches zero. Comment the cleanup, because a missing `clearInterval` is a classic defense question and a real leak.
-   - Done when: the countdown reaches 0 and the quiz auto-submits once, and navigating away leaves no interval running in the console.
-9. [ ] On completion, call `scoreQuiz` and navigate to `/jobs/:jobId/apply` with the score passed in router state as `{ quizScore }`. Handle a direct visit to `/apply` with no state by redirecting back to the quiz.
-   - Done when: finishing the quiz shows the applying screen with the correct quiz score in its URL-independent state, and pasting `/jobs/<id>/apply` directly redirects to the quiz.
-10. [ ] Write `Quiz.css`: one question card, four full-width option buttons with a clear selected state, a timer that turns red under 60 seconds, and a layout that works at 375 px wide.
-    - Done when: the quiz is usable on a narrow window with no horizontal scrolling and the timer colour change is visible.
+1. [ ] Implement `examsService.js`: `getAvailableExams()` (active, inside the time window, subject embedded), `getExamById(id)`, `getExamQuestionsWithoutAnswers(id)` (options without `is_correct`).
+   - Done when: the console returns the seeded exams, and no call ever selects `is_correct`.
+2. [ ] Implement `utils/filterExams.js` and `getExamStatus()` as pure functions.
+   - Done when: an empty query returns everything, and one exam is "upcoming", "open" or "closed" correctly.
+3. [ ] Build `Exams.jsx` + `Exams.css`: search box, subject filter, card grid, status badge, result count, empty state.
+   - Done when: typing filters instantly with no refetch and clearing restores all cards.
+4. [ ] Build `ExamDetails.jsx` + `ExamDetails.css`: exam info, rules, one-attempt notice, "Start exam" → `/exams/:examId/take`; tolerate `getOpenAttempt()` throwing until member3 lands.
+   - Done when: a bad id shows "Exam not found" instead of a blank page.
+5. [ ] Build the state machine of `TakeExam.jsx`: current index, `answers` array, progress line, next/previous, disable next until an option is chosen, `saveAnswer()` on each selection.
+   - Done when: you can move back and forth and the saved answers survive a reload.
+6. [ ] Add the timer: deadline from `attempts.started_at + duration_minutes`, one `setInterval` inside a `useEffect` with `clearInterval` cleanup, red style under 60 seconds.
+   - Done when: refreshing mid-exam shows the correct remaining time and no interval survives navigation.
+7. [ ] Add auto-submit at zero with a `useRef` guard, `autoSubmitted: true`, then navigate to `/my-results`.
+   - Done when: letting the clock run out submits exactly once and the attempt shows `auto_submitted`.
+8. [ ] Build `MyResults.jsx` + `MyResults.css` on `resultsService.getMyResults()`: exam, date, score/total, percentage bar, pass/fail badge, empty state.
+   - Done when: a submitted attempt shows the same score the database holds.
+9. [ ] Build `Profile.jsx` + `Profile.css`: read-only email and role badge, editable full name through `profileService.updateProfile`, no file upload anywhere.
+   - Done when: the name survives a refresh and the role badge matches `profiles.role`.
 
-**Defense notes**
+**Defence notes** — why the deadline is computed from `started_at` instead of counting down a local number; what `clearInterval` leaks if you forget it; why students cannot fetch the answer key; how `unique(exam_id, student_id)` backs the "one attempt" rule.
 
-- Why `filterJobs` and `scoreQuiz` are pure functions in `utils/` with no imports, and how that makes them testable.
-- Why the timer must live in a `useEffect` with a cleanup function, and what `setInterval` leaks without it.
-- Why searching is done in the browser instead of with a Supabase query at this scale, and when that would stop being acceptable.
-- How `useParams` and router state carry the job id and quiz score between pages, and why the score is not passed in the URL.
+### Ahmed Fayez — Doctor Dashboard & Exam Creation (branch `member3`)
 
-### Ahmed Fayez — AI Integration & Applications Dashboard (branch `member3`)
+**Hard challenge: the dynamic create-exam form.**
 
-1. [ ] Implement the body of `analyzeCv(cvFile, job)` in `src/services/aiService.js`, keeping the shipped signature and JSDoc: build the `FormData` exactly as in Section 4.6, `fetch` `${AI_SERVICE_URL}/analyze`, parse the JSON, and round `match_score` to an integer.
-   - Done when: calling it from the console with a real job returns `match_score`, `strengths`, and `weaknesses`.
-2. [ ] Finish the error handling in `aiService`: on a non-`ok` response, read the body and throw an `Error` whose message is `AI_ERROR_MESSAGES[body.code]` with `body.code` attached to the error object, so `Applying.jsx` can branch on it. Wrap the `fetch` so a network `TypeError` becomes the `SERVICE_OFFLINE` message.
-   - Done when: stopping the Python service and calling it shows the `SERVICE_OFFLINE` string, not an unhandled rejection.
-3. [ ] Implement the three bodies in `src/services/applicationsService.js`, keeping the shipped signatures: `submitApplication({ jobId, quizScore, aiMatchScore, aiStrengths, aiWeaknesses })`, `getMyApplications()` with the embedded `jobs (title, company_name)` relation ordered newest first, and `hasApplied(jobId)` using `select('id').eq('job_id', ...).eq('user_id', ...).maybeSingle()`. Take the user id from `supabase.auth.getUser()`, never from a page.
-   - Done when: each function works from the console while signed in and returns only the current user's rows.
-4. [ ] Detect the duplicate case: when `submitApplication` fails with Postgres error code `23505` (unique violation), return a specific `ALREADY_APPLIED` result instead of a generic error, and comment why the check is done in the database and not only in the UI.
-   - Done when: applying twice to the same job shows "You have already applied for this job." and leaves exactly one row.
-5. [ ] Build `pages/Applying.jsx` and `Applying.css` as the submission pipeline with three visible states: uploading and analyzing, saving, done. On mount, read `quizScore` from router state, call `analyzeCv`, then `submitApplication`, then log `APPLICATION_SUBMITTED` through Ahmed Hany's `logSecurityEvent`, then navigate to `/applications`.
-   - Done when: the whole flow completes in one pass and the record is visible on `/applications`.
-6. [ ] Add retry and failure UI to `Applying.jsx`: on failure show the message from step 2 and a "Try again" button that re-runs the pipeline, plus a "Back to job" link. Never leave the user on a blank screen and never insert a half-filled application row.
-   - Done when: with the Python service stopped, the page shows the offline message and Try again succeeds after the service is started.
-7. [ ] Use the shipped `src/components/ProgressBar.jsx` unchanged. It already accepts `label`, `value`, `max`, `suffix`, and `variant` (`success` | `warning` | `danger` | `primary`); write one small `scoreVariant(percent)` helper at the top of `MyApplications.jsx` returning `success` at 70 percent or more, `warning` at 40 or more, and `danger` otherwise.
-   - Done when: the dashboard bars show the right colour band for scores of 20, 55, and 85, and `ProgressBar.jsx` is untouched in your diff.
-8. [ ] Build `pages/MyApplications.jsx` and `MyApplications.css` on top of `getMyApplications()`: one card per application with job title, company, status, submission date, a quiz bar (`max={5}`, `suffix="/ 5"`), an AI match bar (`max={100}`), and the strengths and weaknesses arrays as bullet lists. Add a loading `Loader` and an empty state linking to `/`.
-   - Done when: a submitted application shows both bars at the right widths and all strengths and weaknesses are listed.
-9. [ ] Harden the page against missing data: treat `null` or missing JSONB arrays as empty lists, and handle a deleted job (`jobs` relation comes back as `null`) without crashing the map.
-   - Done when: setting `ai_strengths` to `[]` in the Table Editor renders "No strengths recorded" instead of an error.
-10. [ ] Run the full pipeline against Ibrahim Abduljawad's real analyser once the stub is replaced, and paste the JSON response you received into your pull request as evidence.
-    - Done when: the pasted response matches the contract in Section 4.3 field for field.
+1. [ ] Implement `attemptsService.js` per 7.1, including the `23505` handling in `startAttempt()` and the `submit_attempt` RPC in `submitAttempt()`; explain in a comment why grading is not done here.
+   - Done when: starting twice returns the same open attempt and a submit returns `{ score, total, correctCount, questionCount }`.
+2. [ ] Implement `utils/validateExam.js` per 7.1 (four options, exactly one correct, marks sum equals `total_marks`).
+   - Done when: a draft with 3 options, or with marks that do not add up, is rejected with a readable message.
+3. [ ] Rewrite `Navbar.jsx` + `Navbar.css` with role-aware links and the log-out button.
+   - Done when: each of the three roles sees only its own links and `NavLink` still highlights the active page.
+4. [ ] Keep `Loader.jsx` + `Loader.css` working; update the owner header only.
+   - Done when: no page is left without a loading state.
+5. [ ] Build `CreateExam.jsx` + `CreateExam.css`: exam fields, a `questions` array in state where each item has four options and a `correctIndex`, add/remove question and option buttons, live mark total, `validateExam()` gate.
+   - Done when: you can create an exam with 5 questions through the UI and the total marks equal the sum of the questions.
+6. [ ] Insert in the right order in `CreateExam`: exam → questions (with `order_index`) → options; mark exactly one option correct.
+   - Done when: the seeded and the created exams have identical shapes.
+7. [ ] Build `ManageExams.jsx` + `ManageExams.css`: table of own exams, question count, status, links to results, delete with a confirmation.
+   - Done when: deleting an exam also removes its questions, options and attempts (cascade).
+8. [ ] Build `DoctorDashboard.jsx` + `DoctorDashboard.css` (counters, recent submissions, quick links) and `ExamResults.jsx` + `ExamResults.css` (per-exam table of students, score, status, average, pass rate).
+   - Done when: a doctor sees only their own exams and their own students' rows.
 
-**Defense notes**
+**Defence notes** — why the insert order exam → question → option cannot be shortcut; why `correctIndex` lives in form state but `is_correct` lives in the database; how `validateExam` protects the mark total; why the doctor's result page is still filtered by RLS and not only by the query.
 
-- Why `FormData` must not have a manual `Content-Type` header, and what the multipart boundary is.
-- Why every user-facing message comes from the `AI_ERROR_MESSAGES` constants instead of being typed inline in a page.
-- Why the duplicate application is prevented by a database constraint rather than an `if` in JavaScript.
-- How error `code` values are mapped to messages, and why branching on `detail` would be wrong.
+### Ibrahim Abduljawad — Automatic Grading + Admin + Seed Data (branch `member4`)
 
-### Ibrahim Abduljawad — Python AI Microservice (branch `member4`)
+**Hard challenge: the grading engine.** Mostly simple CRUD otherwise.
 
-1. [ ] Create the virtual environment and install the pinned dependencies: `python -m venv .venv`, activate it, `pip install -r requirements.txt`. Then start `python main.py` and open `/docs`.
-   - Done when: `/health` returns `{"status":"ok"}` and `/docs` lists both endpoints.
-2. [ ] Read the M0 stub in `main.py` and run `pytest -q` before changing anything. The six existing tests already pin the contract the frontend codes against, so they are your baseline.
-   - Done when: six tests pass, and you can explain what `raise_api_error()` and the `http_exception_handler` do to produce the flat `{detail, code}` body.
-3. [ ] Add `extract_text(raw_bytes)` using PyMuPDF: `fitz.open(stream=raw_bytes, filetype="pdf")`, join `page.get_text()` for all pages, close the document in every path, and raise 422 `EMPTY_OR_UNREADABLE_PDF` when the text is shorter than about 30 characters or parsing fails. Keep the comment that the bytes are never written to disk.
-   - Done when: a real PDF returns its text, a truncated or image-only PDF returns 422 instead of a traceback, and `extracted_chars` now reports characters of text.
-4. [ ] Harden `read_and_validate_cv()` with the real MIME check from `cv.content_type` against `ALLOWED_MIME_TYPE` and the declared-size check before reading, keeping the `%PDF-` check as the decisive test and keeping the "cheapest check first" comment.
-   - Done when: a file ending in `.pdf` whose multipart type is `image/png` returns 400 `INVALID_FILE_TYPE`.
-5. [ ] Keep `parse_skills()` as shipped (it already trims, lower-cases, and de-duplicates) and replace `split_matched_skills()` with `compute_skill_coverage(cv_text, skills)`: `re.search` with `re.escape(skill)`, `\b` boundaries, and `re.IGNORECASE`, returning the matched list, the missing list, and coverage as `0..1`.
-   - Done when: a CV containing "Python3" matches `python`, an absent skill is reported missing, and coverage equals `matched / total`.
-6. [ ] Add `compute_similarity(cv_text, description)` using `TfidfVectorizer(stop_words="english")` fitted on both documents and `cosine_similarity`, returning `0.0` when either side has no usable tokens instead of raising.
-   - Done when: identical text scores near `1.0`, unrelated short text scores near `0.0`, and an empty description returns `0.0` with no exception.
-7. [ ] Replace `build_mock_result()` and `analyze_cv_stub()` with `build_analysis_result(...)` and `analyze_cv(cv_text, required_skills, description)`: `match_score = round(100 * (0.7 * coverage + 0.3 * cosine))` clamped to `0..100`, plus the strengths and weaknesses rules from Section 5.1 capped by `MAX_LIST_ITEMS`.
-   - Done when: the worked example in Section 5.2 reproduces score 65 and neither list ever exceeds six items.
-8. [ ] Keep the endpoint thin: `analyze()` becomes `validate_text_fields` → `read_and_validate_cv` → `extract_text` → `analyze_cv` → return the dictionary. Add no new endpoints, and keep `raise_api_error()` as the only way errors are raised.
-   - Done when: `/analyze` returns the real analysis and every failure still uses one of the five agreed codes.
-9. [ ] Update `tests/test_analyze.py`: fix the `extracted_chars` assertion (it compared the file size, which is now the text length) and add cases for the real scorer — a skill-rich CV scoring higher than a skill-poor one, an unreadable PDF returning 422 `EMPTY_OR_UNREADABLE_PDF`, and the MIME-mismatch rejection.
-   - Done when: `pytest -q` passes at least nine tests from a clean checkout with no server running.
-10. [ ] Add two text-based sample PDFs under `samples/` (one containing the required skills, one missing them), describe them in `samples/README.md`, and check both with the `curl` command from Section 4.2.
-    - Done when: the strong sample scores 70 or more and the weak sample scores below 40.
-11. [ ] Rewrite the parts of `ai-service/README.md` that describe the stub so they describe the real pipeline (extract → normalize → skills → TF-IDF → score → feedback), the error codes, and the run and test commands.
-    - Done when: someone who has never seen the code can start the service and interpret the JSON response from the README alone.
+1. [ ] Write `database/04_seed_exams.sql`: 2 subjects, 2 exams (different durations and totals), 5 questions each, 4 options each with exactly one correct, `order_index` 1..5, marks summing to `total_marks`, doctor ids looked up with a subselect.
+   - Done when: `select count(*) from questions` returns 10 and `jsonb`-free sanity queries show exactly one correct option per question.
+2. [ ] Implement `utils/gradeExam.js` exactly as 5.3, including unanswered questions counting as wrong.
+   - Done when: the worked example returns `score 7 / total 12 / percentage 58` and never throws on missing answers.
+3. [ ] Implement `gradingService.js` (`gradeAnswers`, `getExamTotalMarks`, `calculatePercentage`) on top of it.
+   - Done when: `gradeAnswers(null, null)` returns zeros instead of an exception.
+4. [ ] Implement `resultsService.js`: `getMyResults()`, `getExamResultsForDoctor(examId)`, `getAttemptReview(attemptId)`.
+   - Done when: a student sees only their own attempts and a doctor only their own exams'.
+5. [ ] Implement `profileService.js` with `getProfile`, `updateProfile`, `listUsers`, `updateUserRole`, `setUserActive`; no file-upload function may exist.
+   - Done when: `AuthContext` receives the correct role and an admin can deactivate a student.
+6. [ ] Build `AdminDashboard.jsx` + `AdminDashboard.css` and `ManageSubjects.jsx` + `ManageSubjects.css` (subjects CRUD, assign a doctor).
+   - Done when: creating a subject with an existing code is refused with a readable message.
+7. [ ] Build `ManageUsers.jsx` + `ManageUsers.css`: list, role filter, promote/demote, activate/deactivate, and the note that a doctor account is created by registering once and then promoting it.
+   - Done when: a demoted doctor loses the doctor routes on the next sign-in, and RLS refuses their writes immediately.
+8. [ ] Replace `SecurityActivity.jsx` + `SecurityActivity.css`: own audit rows, colour-coded badges per event type, empty state.
+   - Done when: `LOGIN_FAILED`, `LOGIN_SUCCESS` and `EXAM_SUBMITTED` rows are readable and no other user's rows appear.
+9. [ ] Compare `gradeExam.js` against the `submit_attempt` function on the seeded exam and paste both results into the pull request.
+   - Done when: both produce the same score for the same answer set.
 
-**Defense notes**
-
-- Why magic-byte checking is stronger than trusting `Content-Type` or the file extension.
-- How TF-IDF weighting works in one sentence, and what cosine similarity measures.
-- Why the score weights skills at 70% and description similarity at 30%, and what would change if you inverted it.
-- Why the service processes files in memory, and why the CORS list is an exact origin rather than `*`.
+**Defence notes** — how the JS grader and the SQL function are kept identical; why `calculatePercentage` guards against a zero total; why admin actions are still constrained by RLS; why deactivating is safer than deleting a user.
 
 ---
 
@@ -709,62 +502,59 @@ Merge in this order; each step unblocks the next.
 
 | Order | Branch | Owner | Depends on | Note |
 | --- | --- | --- | --- | --- |
-| 1 | `member4` | **Ibrahim Abduljawad** | nothing | The M0 stub of `/analyze` already returns the contract shape, so this branch can merge before the real algorithm exists and it unblocks Ahmed Fayez (member3) immediately. |
-| 2 | `member1` | **Ahmed Hany** | nothing | `database/01`–`03` plus auth, profile, and security pages. Everything else assumes a signed-in user and a working profile, so this is the branch that unblocks Ibrahim Lotfy and Ahmed Fayez. |
-| 3 | `member2` | **Ibrahim Lotfy** | `member1` (RLS, `AuthContext`) | `database/04_seed_jobs.sql` and the jobs and quiz pages. Its Apply button also calls Ahmed Fayez's `hasApplied()`, so it must tolerate that function throwing until `member3` merges. |
-| 4 | `member3` | **Ahmed Fayez** | `member1` (profile, CV path) and `member2` (jobs) | AI service call, submission, dashboard. |
-| 5 | `member4` again | **Ibrahim Abduljawad** | everything | The real analyser replaces the stub once Ahmed Fayez (member3) has proven the pipeline against it. |
+| 1 | `member1` | **Ahmed Hany** | nothing | Schema, RLS, auth. Everything else assumes a signed-in user with a role. |
+| 2 | `member2` | **Ibrahim Lotfy** | `member1` (RLS, `AuthContext`) | Exam list and timer; needs the exams SELECT policy from Ahmed Hany. |
+| 3 | `member4` | **Ibrahim Abduljawad** | `member1` (schema) | Grading, results, admin, seed. Runs in parallel with `member2`. |
+| 4 | `member3` | **Ahmed Fayez** | `member1`, `member2`, `member4` | Doctor pages last: showing results needs exams and grading to exist. |
 
-Practical rules: keep `main` green (the app must start at every merge), rebase your branch on `main` before opening the pull request, and never resolve a conflict by deleting someone else's file — ask its owner. The only file two members may both need to touch is `frontend/src/App.jsx`; it is already complete, so in practice nobody should need to edit it.
-
-**Cross-owner dependencies in plain names** (say these out loud when you plan the week):
+**Cross-owner dependencies in plain names:**
 
 | Dependency | What one owner needs from the other | How to stay unblocked |
 | --- | --- | --- |
-| **Ibrahim Lotfy (member2)** needs **Ahmed Fayez (member3)** | `hasApplied(jobId)` for the Apply button in `JobDetails.jsx` | Call it inside `try/catch` and treat a throw as `false` until `member3` merges. |
-| **Ahmed Fayez (member3)** needs **Ahmed Hany (member1)** | `profiles.cv_url`, `downloadCv(cvPath)` and the storage policies that let the client read the CV back | Code against the function names in Section 7.1; test with any local PDF until `member1` lands. |
-| **Ahmed Fayez (member3)** needs **Ibrahim Abduljawad (member4)** | The `/analyze` request and the six response keys | The M0 stub already answers with the final shape; do not wait for the real algorithm. |
-| **Ibrahim Lotfy (member2)** needs **Ahmed Hany (member1)** | The `jobs` SELECT policy and a working session from `AuthContext` | Seed rows locally in SQL and test the feed as soon as `member1` merges. |
-| **Ibrahim Abduljawad (member4)** needs **Ahmed Fayez (member3)** | Proof that the real analyser matches the contract | Keep the M0 stub until `member3` pastes the live JSON into their pull request. |
-| **Everyone** needs **Ahmed Hany (member1)** for shared files | `README.md`, `PLAN.md`, `.gitignore`, `.gitattributes`, `frontend/src/App.jsx`, `frontend/src/index.css`, `frontend/package.json` | Ask; never edit a shared file on your own branch. |
+| **Ibrahim Lotfy (member2)** needs **Ahmed Hany (member1)** | The `exams` SELECT policy and a working session | Code the queries against the column list in 4.1 and test as soon as `member1` merges. |
+| **Ibrahim Lotfy (member2)** needs **Ibrahim Abduljawad (member4)** | `gradeExam()` / `getMyResults()` for the results page | Render `MyResults` with a local fake array until `resultsService` lands. |
+| **Ahmed Fayez (member3)** needs **Ahmed Hany (member1)** | The doctor RLS policies on `exams`/`questions`/`options` and `submit_attempt` | Wrap `submitAttempt()` in a clear error state; the RPC name is fixed in 4.3. |
+| **Ahmed Fayez (member3)** needs **Ibrahim Lotfy (member2)** | The exams list/navigation so the doctor pages have somewhere to link | Links are already in the route table; build the pages first. |
+| **Ibrahim Abduljawad (member4)** needs **Ahmed Hany (member1)** | The schema, the `is_admin()` policy and `profiles.is_active` | Work against 4.1; the seed script only needs the table names. |
+| **Everyone** needs **Ahmed Hany (member1)** for shared files | `README.md`, `PLAN.md`, `.gitignore`, `.gitattributes`, `App.jsx`, `main.jsx`, `index.css`, `package.json` | Ask; never edit a shared file on your own branch. |
+
+Practical rules: keep `main` green (the app must start at every merge), rebase on `main` before opening the pull request, and never resolve a conflict by deleting somebody else's file.
 
 ### 8.2 End-to-end test script
 
-Run against `main` after all four merges, with two accounts and both servers running.
+Run after all four merges, with a student, a doctor and an admin account:
 
-1. Start the frontend (`npm run dev`) and the AI service (`uvicorn main:app --reload`).
-2. Register user A. Confirm a `profiles` row exists and `/security` shows a `LOGIN_SUCCESS`.
-3. Sign out, then sign in with a wrong password. Confirm the generic error and, after a correct sign-in, that `/security` shows the `LOGIN_FAILED` row.
-4. As A, complete the profile and upload a valid PDF. Confirm the Storage object at `{A_ID}/cv.pdf` and that `/security` shows `CV_UPLOADED`.
-5. Open the job feed, filter by a skill, open a job, take the quiz, and let the timer run down on a second attempt to confirm auto-submit.
-6. Finish the quiz and watch the applying screen. Confirm one row in `applications` with the right `quiz_score`, `ai_match_score`, and both JSONB arrays.
-7. Open `/applications` and confirm both bars and both lists render.
-8. Try applying to the same job again. Confirm the "already applied" message and still exactly one row.
-9. Register user B and confirm an empty `/applications`, an empty `/security`, and an empty profile CV field.
-10. Repeat the console checks in Section 6.9 with B still signed in.
-11. Stop the AI service, apply as B, and confirm the offline message plus a working "Try again" after restarting it.
+1. `npm run dev`, open `/`, sign in as the student → lands on `/exams`.
+2. Filter by subject, open an exam, read the rules, start it.
+3. Answer three questions, refresh the page → same answers, less time left.
+4. Let the timer run out on a second exam → one `auto_submitted` attempt appears in `/my-results`.
+5. Sign in as the doctor → create an exam with 5 questions → it appears in `/doctor/my-exams`.
+6. As the student, take that new exam and submit before the deadline.
+7. As the doctor, open `/doctor/exams/:examId/results` → the student's score matches what the student sees.
+8. As the student, try `/admin/users` directly → redirected, and the console query returns only their own row.
+9. As the admin, promote a student to doctor, deactivate them, and confirm the effect at their next sign-in.
+10. Check `/security` for all three roles: each sees only their own events.
 
 ### 8.3 Security checks
 
-- Rename `malware.exe` to `cv.pdf` and upload it: the frontend must block on MIME/extension, and a direct `curl` to `/analyze` must return 400 `INVALID_FILE_TYPE`.
-- Upload a 6 MB PDF: blocked in the frontend by `validateCvFile`, rejected by the bucket limit, and rejected by the service with 413.
-- Sign in as two users in two browser profiles and confirm neither can see the other's profile, applications, logs, or CV.
-- Confirm no `.env` file, anon key dump, password, or token appears in any committed file or in `security_logs.details`.
-- Confirm the browser bundle contains only the anon key by searching `dist/` for `service_role`.
+- Student console: `select('is_correct')` on `options` → denied. Screenshot it for the report.
+- Student console: insert an attempt for another student id → rejected.
+- Doctor console: read another doctor's exam attempts → `[]`.
+- Signed out: read `exams` → `[]`; write `LOGIN_SUCCESS` → rejected.
+- `.env`, the bundle and the repo contain the anon key only - grep for `service_role` returns nothing.
 
 ### 8.4 Polish and documentation
 
-- Consistent visual pass: one accent colour in `index.css`, the same card radius and spacing across pages, empty states everywhere a list can be empty.
-- Responsive check at 375 px and 1280 px wide for the feed, job details, quiz, and dashboard.
-- `README.md` gains the final run instructions, the four-member ownership table, a screenshot list, and a link to this plan.
-- `ai-service/README.md` gains the algorithm explanation and the test command.
+- Every page: loading, empty and error state visible in the demo.
+- `README.md` section 9 updated with anything that moved, `PLAN.md` section 9 updated with anything still missing.
+- One consistent pass over the CSS: same spacing scale, same card style, no inline styles.
 
 ### 8.5 Rehearsal
 
-- Each member demonstrates their own files for 3 minutes, from the actual code, not from slides.
-- Everyone can answer the four defense notes bullets under their own checklist without notes.
-- Ahmed Hany (member1) explains the architecture diagram in Section 1.3 end to end, including what happens to the anon key.
-- Dry-run the two-user RLS test live, since it is the hardest thing to fake and the most impressive thing to show.
+- Each member demonstrates their own files for 3 minutes from the code, not from slides.
+- Everyone answers the defence notes under their own checklist without notes.
+- Ahmed Hany explains the architecture diagram in 1.3 end to end, including what happens to the anon key.
+- Dry-run the RLS verification in 6.5 live: it is the hardest thing to fake and the most impressive thing to show.
 
 ---
 
@@ -772,16 +562,14 @@ Run against `main` after all four merges, with two accounts and both servers run
 
 | Limitation | Impact | Mitigation or future work |
 | --- | --- | --- |
-| Scanned or image-only PDFs yield no text | That CV scores 0 and shows `EMPTY_OR_UNREADABLE_PDF` | The message tells the user to upload a text-based PDF. Future work: OCR with Tesseract. |
-| `quiz_score` is computed in the browser | A user can forge a perfect score with the console | Accepted for the MVP. Future work: recompute on a trusted server, or store answers and score them in the database with a trigger. The Defense notes should name this before the examiner does. |
-| The AI service has no authentication and runs on localhost | Anyone who can reach port 8000 can call `/analyze` | Local-only by design for the demo; the service holds no data and can read no database. Future work: an API key header checked by a FastAPI dependency. |
-| The quiz timer resets on page refresh | A user can restart the clock | Documented and accepted. Future work: persist a start timestamp in `sessionStorage` or in an `applications` draft row. |
-| Email confirmation is disabled for the demo | Real sign-ups would be unverified | Required so the demo does not stall on an inbox. The README states that production must re-enable it. |
-| TF-IDF is lexical, not semantic | "Postgres" and "PostgreSQL" do not match each other | Partly mitigated by listing skills in `required_skills` in their common spelling. Future work: sentence embeddings. |
-| Scores are inserted by the browser, not the AI service | A user could insert a fabricated `ai_match_score` | Partly mitigated because there is no UPDATE policy, so the fabricated row is the only row they get, and the duplicate constraint prevents resubmission. Future work: move the insert into a server-side function. |
-| Eight seeded jobs, no pagination | Fine at demo scale | Future work: `range()` paging and a full-text index. |
-
-Assumption behind all of the above: the project is assessed as a course MVP, so a documented limitation with a named fix scores better than an undocumented one.
+| MCQ only | No short answers, no essays | Named in the requirements as an MVP scope; future work: a doctor-graded free-text type. |
+| Timer runs in the browser | A determined student can pause the tab | The deadline is recomputed from `started_at` on every load, so pausing does not add time; a server-side `submitted_at` check is the future fix. |
+| Grading is one SQL function | Harder to unit test than JS | `utils/gradeExam.js` mirrors it and member4 compares both results as evidence. |
+| Doctor accounts are promoted, not created | Admin cannot create an auth user without the service key | Register once, then promote; documented in `ManageUsers.jsx`. A real product would use an admin API from a server. |
+| No pagination | Fine at demo scale (10 questions, a handful of users) | Future work: `range()` paging and a full-text index. |
+| Pass mark is a fixed 50% | Not configurable per exam | Documented; future work: add `pass_percentage` to `exams`. |
+| Email confirmation disabled for the demo | Sign-ups are unverified | Required so the demo does not stall; production must re-enable it. |
+| `is_active` on profiles is an addition to the original column list | Needed for "activate/deactivate users" | Documented here and in 4.1; dropping the feature would also drop the column. |
 
 ---
 
@@ -792,46 +580,27 @@ Assumption behind all of the above: the project is assessed as a course MVP, so 
 ```bash
 cd frontend
 npm install
-cp .env.example .env        # then fill in the Supabase URL and anon key (Windows: copy .env.example .env)
+cp .env.example .env        # Windows: Copy-Item .env.example .env
 npm run dev                 # http://localhost:5173
-npm run build               # production build into dist/
-npm run preview             # serve the built app locally
+npm run build               # must pass before every merge
 ```
 
-`frontend/.env.example` already ships these three names with placeholder values; only the first two need replacing with real project values:
+### 10.2 Supabase SQL run order
 
 ```text
-VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-public-key
-VITE_AI_SERVICE_URL=http://localhost:8000
+database/01_schema.sql      -> tables, indexes, signup trigger, submit_attempt()
+database/02_rls.sql         -> helper functions, RLS, policies
+database/04_seed_exams.sql  -> 2 subjects, 2 exams, 5 questions each
 ```
 
-### 10.2 AI service
+### 10.3 Demo layout
 
-```bash
-cd ai-service
-python -m venv .venv
-.venv\Scripts\activate          # Windows; on macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000    # http://localhost:8000/docs
-pytest -q
-```
-
-### 10.3 Supabase SQL run order
-
-In the Supabase SQL editor, in this order, on a fresh project:
+One browser window with three profiles (normal, private) or three browsers:
 
 ```text
-database/01_schema.sql
-database/02_rls.sql
-database/03_storage.sql
-database/04_seed_jobs.sql
+student@test.local  -> /exams
+doctor@test.local   -> /doctor/dashboard
+admin@test.local    -> /admin/dashboard
 ```
 
-Then, once, in Authentication → Providers → Email: turn off "Confirm email" for the demo.
-
-### 10.4 Two-terminal demo layout
-
-Terminal 1: `uvicorn main:app --reload --port 8000` from `ai-service/`.
-Terminal 2: `npm run dev` from `frontend/`.
-Browser: `http://localhost:5173`. Supabase dashboard open in a second tab for the Table Editor and Storage proof.
+No second terminal is needed: Supabase is hosted, and this repository has no server process.

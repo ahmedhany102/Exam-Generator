@@ -1,0 +1,124 @@
+/* ==========================================================================
+   ExamResults.css - styles for pages/ExamResults.jsx
+   Owner: Ahmed Fayez (member3) - Doctor Dashboard & Exam Creation
+   --------------------------------------------------------------------------
+   Three summary cards above the table, then the attempt table itself. The
+   cards reuse the stat look of the doctor dashboard on purpose: the two pages
+   are read the same way, so they should feel like the same screen.
+   --------------------------------------------------------------------------
+   TODO(Ahmed Fayez, member3 - Milestone M3):
+     1. Wire .exam-results-summary to the three real numbers (count, average,
+        pass rate) and colour .exam-results-stat-value by outcome.
+     2. Wire .exam-results-badge modifiers to the three attempt statuses
+        ('submitted', 'auto_submitted', 'in_progress').
+     3. Add .exam-results-score--low (below the pass threshold) so a failing
+        score is visible without reading every number.
+   ========================================================================== */
+
+.exam-results-page {
+  max-width: 940px;
+  margin: 0 auto;
+}
+
+.exam-results-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.exam-results-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.exam-results-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+/* Count / average / pass rate: same card language as the doctor dashboard. */
+.exam-results-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.exam-results-stat {
+  padding: var(--space-md);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.exam-results-stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-primary-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.exam-results-stat-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.exam-results-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--color-surface);
+  font-size: 0.88rem;
+}
+
+.exam-results-table th,
+.exam-results-table td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.exam-results-table th {
+  background-color: var(--color-page);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+/* The score column is what the doctor scans, so it is the loudest cell. */
+.exam-results-score {
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.exam-results-badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.exam-results-badge--submitted {
+  background-color: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.exam-results-badge--auto {
+  background-color: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.exam-results-badge--running {
+  background-color: var(--color-page);
+  color: var(--color-text-muted);
+}

@@ -1,0 +1,130 @@
+-- ============================================================================
+-- 04_seed_exams.sql - demo data for the Online Examination System
+-- Owner: Ibrahim Abduljawad (member4) - Automatic Grading + Admin + Seed Data
+-- ----------------------------------------------------------------------------
+-- MILESTONE M0 PLACEHOLDER
+-- This file documents the plan. Ibrahim Abduljawad writes the real inserts in
+-- Milestone M4 and runs them in the Supabase Dashboard -> SQL Editor.
+--
+-- Run order (see PLAN.md section 6):
+--   1. 01_schema.sql      tables, signup trigger, submit_attempt() grading RPC
+--   2. 02_rls.sql         enable RLS + the three role policy sets
+--   3. 04_seed_exams.sql  <- this file, and only AFTER the two files above
+--
+-- Why a seed file exists at all: a marker cannot grade an empty database. Every
+-- demo of the student, doctor and admin screens needs at least one subject, one
+-- published exam that already has questions, and an author profile to hang that
+-- exam on. Without it the team would click through empty screens in the defence.
+-- ============================================================================
+
+-- ============================================================================
+-- STEP 0 - the accounts the seed depends on
+-- ============================================================================
+--
+-- subjects.doctor_id and exams.created_by are foreign keys into profiles, and a
+-- profiles row only appears after someone registers once through /register.
+-- So the seed must LOOK THESE IDS UP, never hard-code a uuid:
+--
+--   (select id from public.profiles
+--     where role = 'doctor' order by created_at limit 1)
+--   (select id from public.profiles
+--     where role = 'admin'  order by created_at limit 1)
+--
+-- Why no literal uuid: an id is generated per Supabase project, so a hard-coded
+-- one works on the machine that wrote it and fails the foreign key everywhere
+-- else. The subselect also keeps the file readable - the reviewer sees "the
+-- doctor account" instead of 36 hex characters.
+--
+-- Prerequisite, stated for the marker: register one account, promote it to
+-- doctor from /admin/users, and only then run this file.
+
+-- ============================================================================
+-- WHAT TO INSERT
+-- ============================================================================
+--
+-- 1) TWO SUBJECTS
+--      CS201 - Data Structures     doctor_id = the doctor profile above
+--      CS305 - Databases           doctor_id = the same doctor (a second doctor
+--                                  is optional; the model allows either)
+--
+-- 2) TWO EXAMS, deliberately different so the UI is tested with two shapes
+--      A) 'Data Structures - Midterm'
+--           duration_minutes = 45, total_marks = 10, is_active = true
+--      B) 'Databases - Final Quiz'
+--           duration_minutes = 25, total_marks = 5,  is_active = true
+--      Both: description filled in, start_time/end_time left null so the exam is
+--      open immediately (see the student policy in 02_rls.sql), created_by = the
+--      doctor profile above.
+--
+-- 3) EXACTLY 5 MCQ QUESTIONS PER EXAM, order_index 1..5
+--      Exam A: marks 2 + 2 + 2 + 2 + 2 = 10 = exams.total_marks
+--      Exam B: marks 1 + 1 + 1 + 1 + 1 =  5 = exams.total_marks
+--
+--      The sum is the invariant, not the numbers: the grade shown on every
+--      result screen is score / total_marks, so a seed whose question marks do
+--      not add up to exams.total_marks silently makes every percentage wrong.
+--
+-- 4) EXACTLY 4 OPTIONS PER QUESTION, EXACTLY 1 WITH is_correct = true
+--      Why exactly one: gradeExam.js and submit_attempt() both award a question
+--      when the chosen option is flagged correct, and both count one correct
+--      answer per question. Two correct flags would make a student who picked
+--      the other one score differently depending on which side graded, and the
+--      two implementations are required to agree.
+
+-- ============================================================================
+-- SHAPE OF THE INSERTS TO WRITE IN M4 (kept commented - nothing runs at M0)
+-- ============================================================================
+--
+-- begin;   -- all or nothing: a half-seeded database is worse than an empty one
+--
+-- insert into public.subjects (name, code, doctor_id) values
+--   ('Data Structures', 'CS201',
+--    (select id from public.profiles where role = 'doctor' order by created_at limit 1)),
+--   ('Databases', 'CS305',
+--    (select id from public.profiles where role = 'doctor' order by created_at limit 1))
+-- on conflict (code) do nothing;
+--
+-- insert into public.exams
+--   (subject_id, title, description, duration_minutes, total_marks, created_by)
+-- values
+--   ((select id from public.subjects where code = 'CS201'),
+--    'Data Structures - Midterm',
+--    'Five multiple choice questions, two marks each.',
+--    45, 10,
+--    (select id from public.profiles where role = 'doctor' order by created_at limit 1)),
+--   ((select id from public.subjects where code = 'CS305'),
+--    'Databases - Final Quiz',
+--    'Five multiple choice questions, one mark each.',
+--    25, 5,
+--    (select id from public.profiles where role = 'doctor' order by created_at limit 1));
+--
+--   -- then: 10 questions rows (order_index 1..5 per exam) and
+--   --       40 options rows (4 per question, exactly one is_correct = true)
+--
+-- commit;
+--
+-- Why the conflict clauses and why the file must be re-runnable: the seed is run
+-- once on a laptop and again on the lab machine from the same notes, and a
+-- second run must not create a second CS201 or a duplicate exam. subject.code is
+-- already unique, so 'on conflict (code) do nothing' is enough there; for the
+-- second run of questions/options, delete the two seeded exams by title first.
+
+-- ============================================================================
+-- VERIFICATION - run this by hand after the M4 inserts and read the numbers
+-- ============================================================================
+--   select e.title, count(q.id) as question_count, sum(q.marks) as marks_total,
+--          e.total_marks
+--     from public.exams e
+--     join public.questions q on q.exam_id = e.id
+--    group by e.id, e.title, e.total_marks;
+--
+-- Expected: 5 / 10 / 10 and 5 / 5 / 5. If the two mark columns differ, do not
+-- demo the result screens - fix the seed first.
+--
+--   -- exactly one correct option per question must return zero rows:
+--   select q.id, count(o.id) as correct_options
+--     from public.questions q
+--     join public.options o on o.question_id = q.id and o.is_correct
+--    group by q.id having count(o.id) <> 1;
+
+-- TODO(Ibrahim Abduljawad, member4 - Milestone M4): write the seed inserts.

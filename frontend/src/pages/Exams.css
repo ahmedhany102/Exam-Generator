@@ -1,0 +1,103 @@
+/* Exams.css - styles for pages/Exams.jsx (owner: Ibrahim Lotfy, member2) */
+/* ==========================================================================
+   --------------------------------------------------------------------------
+   Search bar, card grid and the status badge of the student exam list. Only the
+   .exams-todo-* rules are used by the M0 placeholder; the rest is the shape the
+   M2 page will fill, so the layout is decided before the API is wired.
+
+   TODO(Ibrahim Lotfy, member2 - Milestone M2):
+     1. Drop .exams-todo-* together with the placeholder-note block.
+     2. Check the grid at 375 px: it must fall back to one column, no scroll.
+     3. Keep every colour a var(--color-*) token so the palette stays in index.css.
+   ========================================================================== */
+
+.exams-page {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.exams-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.exams-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.exams-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+/* Search box + subject filter, side by side on wide screens. */
+.exams-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.exams-toolbar .form-group {
+  margin-bottom: 0;
+  flex: 1 1 220px;
+}
+
+/* auto-fit + minmax = one column on a phone, as many as fit on a laptop,
+   with no media query to explain. */
+.exams-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-md);
+}
+
+.exam-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-lg);
+}
+
+.exam-card h2 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.exam-card-meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/* One badge class, three modifiers: the colour is the only thing that changes,
+   so the markup stays simple. */
+.exam-status {
+  align-self: flex-start;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.exam-status--open {
+  background-color: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.exam-status--upcoming {
+  background-color: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.exam-status--closed {
+  background-color: var(--color-danger-soft);
+  color: var(--color-danger);
+}

@@ -1,0 +1,82 @@
+/* ExamDetails.css - styles for pages/ExamDetails.jsx (owner: Ibrahim Lotfy, member2) */
+/* ==========================================================================
+   --------------------------------------------------------------------------
+   The exam information panel and the rules list. The rules are deliberately a
+   <ul> of short sentences: during the review we can point at the exact line that
+   explains "one attempt only" instead of describing it from memory.
+
+   TODO(Ibrahim Lotfy, member2 - Milestone M2):
+     1. Drop the .exam-details-todo-* rules with the placeholder block.
+     2. Keep the rules list readable at 375 px (no fixed widths).
+     3. Style the disabled "Already attempted" button clearly - .btn:disabled in
+        index.css already dims it, so add nothing unless a test shows a problem.
+   ========================================================================== */
+
+.exam-details-page {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.exam-details-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.exam-details-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.exam-details-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+/* The three numbers a student checks twice: duration, marks, attempts. */
+.exam-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.exam-meta-item {
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--color-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.exam-meta-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+.exam-meta-value {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.exam-rules {
+  margin: 0 0 var(--space-lg);
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.exam-rules li {
+  margin-bottom: var(--space-xs);
+}
+
+/* Button row keeps the primary action on the left, where the eye starts. */
+.exam-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}

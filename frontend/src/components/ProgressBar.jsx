@@ -1,22 +1,32 @@
 import './ProgressBar.css';
 
 // ============================================================================
-// Owner: Member 3 - Ahmed Fayez (AI Integration & Applications Dashboard)
+// Owner: Ibrahim Lotfy (member2) - Student Exams & Timed Exam
 // File: components/ProgressBar.jsx
 // ----------------------------------------------------------------------------
-// One reusable horizontal bar. The "My Applications" page uses three of them
-// per application card: AI match score (0-100), quiz score (0-5) and a status
-// row. Keeping it in a component means the percentages are calculated once.
+// One reusable horizontal bar, used in two places:
+//   - TakeExam.jsx  : answered questions against the total, e.g. 7 / 10
+//   - MyResults.jsx : the score of one attempt against the exam total_marks
+// Keeping it a component means the percentage maths is written once, and both
+// pages draw the same shape instead of two slightly different bars.
 //
 // Props:
-//   label  - text on the left ("AI Match")
-//   value  - current number (e.g. 72)
-//   max    - highest possible number (default 100, use 5 for the quiz)
+//   label  - text on the left ("Answered")
+//   value  - current number (e.g. 7)
+//   max    - highest possible number (default 100, use the question count here)
 //   suffix - text after the numbers (default '/ 100')
 //   variant- 'success' | 'warning' | 'danger' | 'primary' (controls the colour)
 //
-// The bar is already implemented because it is pure presentation and Member 3
-// needs it on day one; the pages that use it are still placeholders.
+// The bar is already implemented because it is pure presentation: it holds no
+// state and fetches nothing. The pages that use it are still placeholders.
+//
+// TODO(Ibrahim Lotfy, member2 - Milestone M2):
+//   1. Use it in TakeExam.jsx as <ProgressBar label="Answered" value={answered}
+//      max={questions.length} suffix={`/ ${questions.length}`} />.
+//   2. Use it in MyResults.jsx with max={attempt.exams.total_marks} and
+//      variant="success" when the attempt passed, "danger" when it did not.
+//   3. Keep the props exactly as they are: other members already import this
+//      component, so a rename here would break their pages silently.
 // ============================================================================
 export default function ProgressBar({
   label,

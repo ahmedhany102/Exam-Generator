@@ -1,9 +1,9 @@
 {
-  "name": "candidate-portal-frontend",
+  "name": "online-exam-system-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "React + Vite frontend for the AI-Powered Candidate Portal (university course MVP)",
+  "description": "React + Vite frontend for the Online Examination System (university course MVP)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

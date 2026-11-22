@@ -1,22 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 
 // ============================================================================
-// Owner: Member 1 - Ahmed Hany (Database, Auth & Security)
+// Owner: Ahmed Hany (member1) - Team Lead, Database, Auth & Security
 // File: lib/supabaseClient.js
 // ----------------------------------------------------------------------------
 // ONE Supabase client for the whole frontend.
 //
 // Why a single file: creating a client per page would open extra auth
-// listeners and duplicate sessions. Every service (jobs, applications,
-// profile, security log) imports the same `supabase` object from here.
+// listeners and duplicate sessions. Every service (exams, attempts, results,
+// grading, profile, security log) imports the same `supabase` object here.
 //
-// The two values come from frontend/.env (VITE_supabase...). Vite replaces
+// Supabase is the only backend of this system: Auth issues the JWT, Postgres
+// stores profiles/exams/questions/attempts, and Row Level Security decides what
+// each role may read or write. There is no second server and no API base URL.
+//
+// The two values come from frontend/.env (VITE_SUPABASE_*). Vite replaces
 // import.meta.env.VITE_* at build time, so they are compiled into the bundle.
-// That is safe ONLY because we use the anon public key. Row Level Security in
-// Postgres decides what that key is allowed to read or write.
+// That is safe ONLY because we use the anon public key: RLS, not secrecy, is
+// what protects the data.
 //
-// The client is set to null when the keys are missing so the application can
-// still start (showing a warning) instead of crashing on a blank screen.
+// The client is null when the keys are missing so the frontend can still start
+// (with a warning banner) instead of crashing on a blank screen.
 // ============================================================================
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -32,11 +36,7 @@ if (!isSupabaseConfigured) {
   );
 }
 
-/** The shared Supabase client (auth + database + storage). */
+/** The shared Supabase client (auth + database). */
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
-
-/** Where the Python AI service runs. Also configurable through .env. */
-export const AI_SERVICE_URL =
-  import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8000';

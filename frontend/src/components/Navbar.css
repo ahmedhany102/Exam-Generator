@@ -1,5 +1,17 @@
 /* ==========================================================================
-   Navbar.css - styles for components/Navbar.jsx (owner: Member 1)
+   Navbar.css - styles for components/Navbar.jsx (owner: Ahmed Fayez, member3)
+   --------------------------------------------------------------------------
+   The menu itself is data (LINKS_BY_ROLE in the JSX); this file only decides
+   how a link looks in its three states: normal, hovered and .active (the
+   class NavLink adds by itself on the matching URL).
+   --------------------------------------------------------------------------
+   TODO(Ahmed Fayez, member3 - Milestone M3):
+     1. Add a .navbar-toggle button style for the under-640px menu (TODO 4 in
+        Navbar.jsx); the current layout only wraps.
+     2. Give .navbar-role a colour per role (student/doctor/admin) once the
+        role chip carries a full name instead of the raw column value.
+     3. Keep the sticky offset in mind: .navbar is position: sticky, so any
+        future anchor scrolling needs scroll-margin-top: 64px on the target.
    ========================================================================== */
 
 .navbar {
@@ -79,6 +91,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Small chip so the demo can show "same menu, different role" at a glance. */
+.navbar-role {
+  padding: 0.1rem 0.5rem;
+  background-color: var(--color-page);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
 /* Small screens: stack the links under the brand. */
