@@ -1,6 +1,6 @@
 /* ==========================================================================
-   Login.css - styles for pages/Login.jsx (owner: Member 1)
-   Auth forms are narrow, so this page is centred with a max width.
+   Login.css - styles for pages/Login.jsx (owner: Ahmed Hany, member1)
+   Auth forms are narrow, so the page is a centred card with a max width.
    ========================================================================== */
 
 .login-page {
@@ -17,6 +17,7 @@
   text-align: center;
 }
 
+/* Login and Register share the same small "what is still missing" list. */
 .login-todo-title {
   margin: var(--space-sm) 0 var(--space-xs);
   font-weight: 600;
@@ -34,6 +35,7 @@
   margin-bottom: 0.2rem;
 }
 
+/* Row under the form: "Log in" button on the left, "Register" link right. */
 .login-actions {
   display: flex;
   align-items: center;

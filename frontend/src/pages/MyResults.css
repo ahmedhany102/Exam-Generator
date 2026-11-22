@@ -1,0 +1,98 @@
+/* MyResults.css - styles for pages/MyResults.jsx (owner: Ibrahim Lotfy, member2) */
+/* ==========================================================================
+   --------------------------------------------------------------------------
+   The result rows and the pass/fail badge. The score is the number a student
+   looks for first, so it is the only large text in the row; everything else is
+   secondary and muted.
+
+   TODO(Ibrahim Lotfy, member2 - Milestone M2):
+     1. Drop the .my-results-todo-* rules with the placeholder block.
+     2. Check a long exam title at 375 px: .result-row must stack, not overflow.
+     3. Keep the pass/fail wording in the JSX and only the colours here.
+   ========================================================================== */
+
+.my-results-page {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.my-results-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.my-results-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.my-results-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding: var(--space-md) var(--space-lg);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.result-exam-title {
+  font-weight: 600;
+}
+
+.result-date {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.result-score {
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-score-total {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+/* Same badge geometry as the exam status badge, different colour meaning. */
+.result-badge {
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.result-badge--pass {
+  background-color: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.result-badge--fail {
+  background-color: var(--color-danger-soft);
+  color: var(--color-danger);
+}

@@ -1,0 +1,122 @@
+/* ==========================================================================
+   ManageExams.css - styles for pages/ManageExams.jsx
+   Owner: Ahmed Fayez (member3) - Doctor Dashboard & Exam Creation
+   --------------------------------------------------------------------------
+   This page is wider than a reading page because the table has seven columns;
+   it still fits the shared --max-width, so no horizontal scrolling is needed.
+   --------------------------------------------------------------------------
+   TODO(Ahmed Fayez, member3 - Milestone M3):
+     1. Wire .manage-exams-table to the real rows and right-align the numeric
+        columns (.manage-exams-number) so durations and marks line up.
+     2. Wire .exam-badge--active / .exam-badge--inactive to exams.is_active.
+     3. Add .manage-exams-table-wrapper { overflow-x: auto } around the table
+        once the real row count proves it is needed on a phone.
+   ========================================================================== */
+
+.manage-exams-page {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.manage-exams-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.manage-exams-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.manage-exams-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+.manage-exams-table-wrapper {
+  overflow-x: auto;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.manage-exams-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.manage-exams-table th,
+.manage-exams-table td {
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.manage-exams-table th {
+  background-color: var(--color-page);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+.manage-exams-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.manage-exams-table tbody tr:hover {
+  background-color: var(--color-page);
+}
+
+/* Numbers read better right-aligned; the header follows the cells. */
+.manage-exams-number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status chip: active vs inactive, the same 999px pill as the owner badge. */
+.exam-badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.exam-badge--active {
+  background-color: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.exam-badge--inactive {
+  background-color: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+/* Row actions: link + delete, kept on one line. */
+.manage-exams-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.manage-exams-actions .btn {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.82rem;
+}
+
+.manage-exams-empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-muted);
+  background-color: var(--color-page);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+}

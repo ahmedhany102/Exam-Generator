@@ -1,5 +1,5 @@
 /* ==========================================================================
-   index.css - GLOBAL styles shared by the whole application
+   index.css - GLOBAL styles shared by the whole app
    --------------------------------------------------------------------------
    This file is loaded once in main.jsx and contains only:
      1. CSS custom properties (variables) - colours, spacing, radius
@@ -7,8 +7,8 @@
      3. Shared primitives: layout, buttons, form fields, cards, alerts
 
    Everything else lives in a modular CSS file next to its page or component
-   (Navbar.css, Jobs.css, MyApplications.css, ...). That way the reviewer can
-   open one page file and see all the styling for that page.
+   (Navbar.css, Exams.css, TakeExam.css, ...). That way the reviewer can open
+   one page file and see all the styling for that page.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------

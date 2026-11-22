@@ -1,59 +1,61 @@
 import './Profile.css';
 
 // ============================================================================
-// Owner: Member 1 - Ahmed Hany (Database, Auth & Security)
+// Owner: Ibrahim Lotfy (member2) - Student Exams & Timed Exam
 // File: pages/Profile.jsx
-// Route: /profile   (protected)
+// Route: /profile   (protected, every role)
 // ----------------------------------------------------------------------------
-// TODO(Member 1 - Milestone M1):
-//   1. On mount: getProfile() -> fill full_name and job_title inputs.
-//   2. Save button: updateProfile({ full_name, job_title }) and show a
-//      success alert ("Profile updated").
-//   3. CV section:
-//        - <input type="file" accept="application/pdf" />
-//        - validateCvFile(file) BEFORE uploading; on failure log
-//          INVALID_FILE_BLOCKED and show the returned error message.
-//        - uploadCv(file) -> stores "{user_id}/cv.pdf" in the private bucket
-//          and the path in profiles.cv_url, then logs CV_UPLOADED.
-//        - show "CV uploaded" plus the file name/date.
-//   4. This page is also the gate for applying: without a CV the Apply button
-//      on JobDetails sends the user here first.
+// The account page. It shows what the student is not allowed to change (email,
+// role) and lets them change the one thing they own: their full name.
+//
+// There is NO file upload on this page and none is planned. The old version of
+// this file offered one; this system keeps no files at all - Supabase is used for
+// Auth and Postgres only, so there is no Storage bucket to upload to. If a future
+// milestone needs an attachment, that is a new decision with a new bucket and its
+// own RLS policy, not a hidden input here.
+//
+// The role comes from profiles.role and is written BY the database, never by this
+// page: a form that could post its own role would let a student promote
+// themselves. RLS refuses the update anyway, but the UI must not even offer it.
+//
+// TODO(Ibrahim Lotfy, member2 - Milestone M2):
+//   1. On mount: getProfile() from services/profileService.js (Ahmed Hany,
+//      member1) -> keep { email, role, full_name } in useState, with loading and
+//      error states. Wrap the call in try/catch while his file is still a stub.
+//   2. Email input: readOnly, plus a hint saying the email is the sign-in
+//      identity and cannot be edited here.
+//   3. Role: show it as a badge (.profile-role), never as an editable field.
+//   4. Full name: one controlled input; disable Save while it is unchanged or
+//      empty after trim(), so the page cannot store an empty name.
+//   5. Save: await updateProfile({ full_name }); on success show
+//      <div className="alert alert-success">, on error the message from the
+//      returned error. profileService returns { error } and never throws.
+//   6. Keep the saved name in a separate state value (`savedName`) so the
+//      "nothing changed" check survives a failed save.
 // ============================================================================
 export default function Profile() {
   return (
     <section className="profile-page">
       <header className="page-header">
-        <h1>My Profile</h1>
-        <p>Keep your details up to date and upload the PDF CV used by the AI analysis.</p>
+        <h1>My profile</h1>
+        <p>
+          Your account details. The email and the role are managed by the system;
+          you can update how your name appears on your results.
+        </p>
       </header>
 
-      <span className="owner-badge">Owner: Member 1 - Ahmed Hany</span>
+      <span className="owner-badge">Owner: Ibrahim Lotfy (member2)</span>
 
-      <div className="profile-grid">
-        <div className="card">
-          <h2>Personal details</h2>
-          <div className="placeholder-note">
-            <strong>Placeholder form (Milestone M0)</strong>
-            <ul className="profile-todo-list">
-              <li>Full name input</li>
-              <li>Job title input</li>
-              <li>Save button calling updateProfile()</li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="card">
-          <h2>My CV (PDF, max 5 MB)</h2>
-          <div className="placeholder-note">
-            <strong>Placeholder uploader (Milestone M0)</strong>
-            <ul className="profile-todo-list">
-              <li>File input restricted to .pdf</li>
-              <li>validateCvFile() before upload</li>
-              <li>uploadCv() to the private "cvs" bucket</li>
-              <li>INVALID_FILE_BLOCKED / CV_UPLOADED security logs</li>
-            </ul>
-          </div>
-        </div>
+      <div className="placeholder-note">
+        <strong>Placeholder page - Milestone M0</strong>
+        <p className="profile-todo-title">This page will contain:</p>
+        <ul className="profile-todo-list">
+          <li>A read-only email field, with a hint explaining why</li>
+          <li>A role badge: student, doctor or admin</li>
+          <li>An editable full name with a Save button</li>
+          <li>A success or error alert after saving</li>
+          <li>No file input anywhere: this system stores no files</li>
+        </ul>
       </div>
     </section>
   );

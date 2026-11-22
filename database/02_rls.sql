@@ -1,37 +1,111 @@
 -- ============================================================================
--- 02_rls.sql - Row Level Security for the Candidate Portal
--- Owner: Member 1 - Ahmed Hany (Database, Auth & Security)
+-- 02_rls.sql - Row Level Security for the Online Examination System
+-- Owner: Ahmed Hany (member1) - Team Lead, Database, Auth & Security
 -- ----------------------------------------------------------------------------
 -- MILESTONE M0 PLACEHOLDER
--- Run this AFTER 01_schema.sql. The goal of this file is to prove, during the
--- security defense, that the browser (anon / authenticated key) can only ever
--- see the logged-in user's own rows.
+-- Run this AFTER 01_schema.sql. This file is the security mark of the project:
+-- it proves that a browser holding the public anon key can only ever see what
+-- its role is allowed to see, no matter what the JavaScript sends.
 --
--- Required steps:
---   1. ALTER TABLE ... ENABLE ROW LEVEL SECURITY; on all four tables.
+-- Three roles, three different rules:
+--   student : reads open exams, reads/writes only their own attempt
+--   doctor  : reads/writes only exams (and children) that they created
+--   admin   : manages profiles + subjects, reads everything for reporting
 --
---   2. profiles
---       - SELECT / INSERT / UPDATE only where auth.uid() = id
---       - no DELETE policy (profiles disappear with the auth user)
+-- STEP 0 - enable RLS on every table (without this, policies do nothing):
+--   alter table public.profiles      enable row level security;
+--   alter table public.subjects      enable row level security;
+--   alter table public.exams         enable row level security;
+--   alter table public.questions     enable row level security;
+--   alter table public.options       enable row level security;
+--   alter table public.attempts      enable row level security;
+--   alter table public.answers       enable row level security;
+--   alter table public.security_logs enable row level security;
 --
---   3. jobs
---       - SELECT for the "authenticated" role only
---       - no INSERT/UPDATE/DELETE policy: jobs are managed from the dashboard
+-- STEP 1 - helper functions, to avoid policies that call each other in a loop
+-- (a policy on profiles that queries profiles recurses and fails). Both are
+-- security definer, stable, and return a boolean:
+--   public.current_role() returns text   -> select role from profiles where id = auth.uid()
+--   public.is_admin()     returns boolean -> public.current_role() = 'admin'
+--   public.owns_exam(p_exam_id uuid) returns boolean
+--        -> exists (select 1 from exams e where e.id = p_exam_id and e.created_by = auth.uid())
 --
---   4. applications
---       - SELECT and INSERT only where auth.uid() = user_id
---       - NO UPDATE / DELETE: a candidate must not be able to change the
---         quiz_score or ai_match_score after the fact
---
---   5. security_logs
---       - INSERT allowed for "anon" AND "authenticated" because a FAILED login
---         happens before a session exists
---       - SELECT for "authenticated" only where user_email = auth.jwt() ->> 'email'
---       - no UPDATE / DELETE: the audit log is append-only
---
---   6. Verification: create two test users (A and B) and prove that B cannot
---      read A's profile, applications, logs or CV file. Record the result in
---      the final report.
+-- POLICY MATRIX (what to write, one policy per row)
 -- ============================================================================
-
--- TODO(Member 1 - Ahmed Hany): write the policies in Milestone M1.
+--
+-- profiles
+--   SELECT  authenticated : auth.uid() = id            (own row)
+--   SELECT  authenticated : public.is_admin()          (admin user list)
+--   SELECT  authenticated : public.current_role() = 'doctor'
+--                          and role = 'student'        (doctor sees names on results)
+--   UPDATE  authenticated : auth.uid() = id            (edit own full_name)
+--   UPDATE  authenticated : public.is_admin()          (change role, is_active)
+--   INSERT  - none: the trigger creates the row
+--   DELETE  - none: account deletion goes through Auth, not the client
+--
+-- subjects
+--   SELECT  authenticated : true                       (everyone needs subject names)
+--   INSERT / UPDATE / DELETE : public.is_admin() only
+--
+-- exams
+--   SELECT  authenticated : is_active and (start_time is null or start_time <= now())
+--                          and (end_time is null or end_time >= now())   -> student view
+--   SELECT  authenticated : created_by = auth.uid()                      -> doctor view
+--   SELECT  authenticated : public.is_admin()
+--   INSERT  authenticated : created_by = auth.uid() and public.current_role() = 'doctor'
+--   UPDATE / DELETE : created_by = auth.uid()
+--
+-- questions
+--   SELECT  authenticated : parent exam is visible (student rules above)
+--   ALL     (insert/update/delete) : public.owns_exam(exam_id)
+--
+-- options  - the interesting one
+--   SELECT  authenticated : exists (select 1 from questions q
+--                                   join exams e on e.id = q.exam_id
+--                                   where q.id = options.question_id
+--                                   and (public.owns_exam(e.id) or public.is_admin()))
+--   SELECT  authenticated : student variant WITHOUT is_correct
+--                          -> use a view public.exam_options_public that selects
+--                             id, question_id, option_text (no is_correct column)
+--                             and let students read the view only
+--   INSERT / UPDATE / DELETE : public.owns_exam(question's exam)
+--
+--   RULE: a student must never be able to SELECT options.is_correct. That is
+--   why grading runs inside the submit_attempt RPC (security definer) instead
+--   of in the browser. Do not "fix" this by exposing the column.
+--
+-- attempts
+--   SELECT  authenticated : student_id = auth.uid()
+--   SELECT  authenticated : exists (select 1 from exams e
+--                                   where e.id = attempts.exam_id and e.created_by = auth.uid())
+--   SELECT  authenticated : public.is_admin()
+--   INSERT  authenticated : student_id = auth.uid()
+--   UPDATE  - none for students: the RPC closes the attempt, so a student
+--           cannot rewrite their own score after seeing it
+--
+-- answers
+--   SELECT  authenticated : the parent attempt belongs to the caller
+--                          or the caller owns the exam (doctor) or is admin
+--   INSERT  - none directly: answers are written by the submit_attempt RPC
+--   UPDATE / DELETE - none for students
+--
+-- security_logs  (unchanged from the old project)
+--   INSERT  anon           : with check (event_type = 'LOGIN_FAILED')
+--   INSERT  authenticated  : with check (event_type in ('LOGIN_SUCCESS','LOGOUT',
+--                            'EXAM_STARTED','EXAM_SUBMITTED','BLOCKED_ACTION'))
+--   SELECT  authenticated  : user_email = auth.jwt() ->> 'email'
+--   UPDATE / DELETE - none: the audit log is append-only
+--
+-- ============================================================================
+-- VERIFICATION - run this by hand after the file succeeds, and paste the
+-- result into the pull request. This is the evidence for the security grade.
+--   1. Create student A, student B, doctor D (promote D with an admin UPDATE).
+--   2. As A: take an exam. As B: open /my-results -> must be empty.
+--   3. As A in the console:
+--        await supabase.from('options').select('is_correct')   -> error/permission denied
+--        await supabase.from('attempts').select('*').eq('student_id', B_ID) -> []
+--   4. As D: select attempts for an exam he did not create -> [].
+--   5. As B: insert an attempt with student_id = A -> rejected by with check.
+--
+-- TODO(Ahmed Hany, member1 - Milestone M1): write the helper functions, enable
+-- RLS on all eight tables and add every policy from the matrix above.

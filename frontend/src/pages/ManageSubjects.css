@@ -1,0 +1,74 @@
+/* ==========================================================================
+   ManageSubjects.css - styles for pages/ManageSubjects.jsx
+   (owner: Ibrahim Abduljawad, member4)
+   ========================================================================== */
+
+.manage-subjects-page {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.manage-subjects-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.manage-subjects-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.manage-subjects-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+/* Two-column layout: form on the left, the table on the right. */
+.manage-subjects-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.subject-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--color-surface);
+  font-size: 0.88rem;
+}
+
+.subject-table th,
+.subject-table td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.subject-table th {
+  background-color: var(--color-page);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+.subject-code {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.82rem;
+  color: var(--color-primary-dark);
+}
+
+.subject-row-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+@media (max-width: 760px) {
+  .manage-subjects-layout {
+    grid-template-columns: 1fr;
+  }
+}

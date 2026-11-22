@@ -1,0 +1,72 @@
+/* ==========================================================================
+   AdminDashboard.css - styles for pages/AdminDashboard.jsx
+   Owner: Ibrahim Abduljawad (member4) - Automatic Grading + Admin + Seed Data
+   --------------------------------------------------------------------------
+   Four counters are the whole page, so the grid and the big number carry the
+   design; the two navigation links stay plain .btn anchors from index.css.
+   ========================================================================== */
+
+.admin-dashboard-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.admin-dashboard-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.admin-dashboard-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.admin-dashboard-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+/* Counters the real page renders in M4: one card per number. */
+.admin-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-md);
+  margin: var(--space-lg) 0;
+}
+
+.admin-stat-card {
+  padding: var(--space-md);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-stat-value {
+  display: block;
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-primary-dark);
+}
+
+.admin-stat-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.admin-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+@media (max-width: 720px) {
+  .admin-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

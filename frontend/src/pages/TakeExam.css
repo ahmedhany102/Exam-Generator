@@ -1,0 +1,123 @@
+/* TakeExam.css - styles for pages/TakeExam.jsx (owner: Ibrahim Lotfy, member2) */
+/* ==========================================================================
+   --------------------------------------------------------------------------
+   The countdown, the question card and the option rows. The option rows are the
+   part that has to survive a phone: a student reading a long answer must not
+   scroll sideways, and the selected state must be obvious without relying on
+   colour alone (a border is added next to the tint).
+
+   TODO(Ibrahim Lotfy, member2 - Milestone M2):
+     1. Drop the .take-exam-todo-* rules with the placeholder block.
+     2. Add the under-60-seconds class to the timer and keep its colour in step
+        with the --color-danger token used by .btn-danger.
+     3. Verify the option rows with a keyboard: :focus-visible must be visible,
+        because the exam can be sat without a mouse.
+   ========================================================================== */
+
+.take-exam-page {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.take-exam-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.take-exam-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.take-exam-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+/* Sticky so the clock never scrolls out of view while reading a long question. */
+.exam-timer {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.exam-timer-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-primary-dark);
+}
+
+/* Under a minute: the same number, a colour the eye cannot miss. */
+.exam-timer-value--warning {
+  color: var(--color-danger);
+}
+
+.exam-question-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+}
+
+.exam-question-text {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: var(--space-md);
+}
+
+.exam-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The whole row is the control, so the tap target is wider than the label. */
+.exam-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-family: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.exam-option:hover {
+  background-color: var(--color-page);
+}
+
+/* Border + tint together: colour is never the only signal of the chosen answer. */
+.exam-option--selected {
+  background-color: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  font-weight: 600;
+}
+
+.exam-option:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

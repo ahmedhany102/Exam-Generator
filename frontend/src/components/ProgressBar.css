@@ -1,5 +1,16 @@
 /* ==========================================================================
-   ProgressBar.css - styles for components/ProgressBar.jsx (owner: Member 3)
+   ProgressBar.css - styles for components/ProgressBar.jsx (owner: Ibrahim Lotfy, member2)
+   --------------------------------------------------------------------------
+   Only this comment block changed in M0. The rules below already work, so they
+   are left untouched; the header is rewritten because the component moved to
+   member2 and now serves TakeExam.jsx and MyResults.jsx instead of the old page.
+
+   TODO(Ibrahim Lotfy, member2 - Milestone M2):
+     1. Confirm the answered bar in TakeExam.jsx reads well on a phone (the
+        header row is a flex row and the label is the first thing to wrap).
+     2. Reuse .progress-fill-warning for the countdown bar under 60 seconds so
+        the colour meaning stays in one place.
+     3. Do not add a new colour here - reuse the --color-* tokens from index.css.
    ========================================================================== */
 
 .progress {

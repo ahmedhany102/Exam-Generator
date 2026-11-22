@@ -1,0 +1,114 @@
+/* ==========================================================================
+   ManageUsers.css - styles for pages/ManageUsers.jsx
+   Owner: Ibrahim Abduljawad (member4) - Automatic Grading + Admin + Seed Data
+   --------------------------------------------------------------------------
+   The table is the page: a wide screen shows all five columns, a phone scrolls
+   it sideways rather than squeezing emails into two characters per line.
+   ========================================================================== */
+
+.users-page {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.users-todo-title {
+  margin: var(--space-sm) 0 var(--space-xs);
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: 0.88rem;
+}
+
+.users-todo-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+
+.users-todo-list li {
+  margin-bottom: 0.2rem;
+}
+
+.users-note {
+  margin-top: var(--space-lg);
+}
+
+.users-note p {
+  margin: var(--space-sm) 0 0;
+}
+
+.users-note p:last-child {
+  margin-bottom: 0;
+}
+
+/* Filter bar above the table: label + select + count, one row. */
+.users-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.users-toolbar select {
+  padding: 0.45rem 0.6rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--color-surface);
+  font-size: 0.88rem;
+}
+
+.users-table th,
+.users-table td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.users-table th {
+  background-color: var(--color-page);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+/* A closed account stays readable but visibly muted. */
+.users-table tr.users-row--closed td {
+  color: var(--color-text-muted);
+}
+
+.users-role-badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+}
+
+.users-role-badge--doctor {
+  background-color: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.users-role-badge--admin {
+  background-color: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.users-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}

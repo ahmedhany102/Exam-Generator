@@ -1,5 +1,17 @@
 /* ==========================================================================
-   Loader.css - styles for components/Loader.jsx (owner: Member 1)
+   Loader.css - styles for components/Loader.jsx (owner: Ahmed Fayez, member3)
+   --------------------------------------------------------------------------
+   A pure-CSS spinner: one bordered square with only the top edge coloured,
+   rotated by a keyframe. No image, no library, no layout shift - the box keeps
+   its height even before the text arrives.
+   --------------------------------------------------------------------------
+   TODO(Ahmed Fayez, member3 - Milestone M3):
+     1. Add a .loader--inline modifier for the table rows that wait for data
+        (ManageExams, ExamResults) once the `variant` prop exists.
+     2. Add a .loader--compact size for the navbar-sized waits; keep the same
+        4px-based spacing tokens so it never looks like a different component.
+     3. If a long wait ever needs a hint ("Grading your answers..."), style it
+        with .loader-note instead of adding another paragraph class per page.
    ========================================================================== */
 
 .loader {
@@ -28,5 +40,13 @@
 @keyframes loader-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Accessibility: a spinning ring is decoration, so drop it for users who asked
+   the system to reduce motion. The text alone still says what is happening. */
+@media (prefers-reduced-motion: reduce) {
+  .loader-spinner {
+    animation: none;
   }
 }

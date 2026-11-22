@@ -1,5 +1,6 @@
 /* ==========================================================================
-   SecurityActivity.css - styles for pages/SecurityActivity.jsx (owner: M1)
+   SecurityActivity.css - styles for pages/SecurityActivity.jsx
+   (owner: Ibrahim Abduljawad, member4)
    ========================================================================== */
 
 .security-page {
@@ -31,7 +32,7 @@
   margin-bottom: 0.2rem;
 }
 
-/* Table styles the member will use in M1. */
+/* Audit table the member will fill in M4. */
 .security-table {
   width: 100%;
   border-collapse: collapse;
@@ -55,7 +56,7 @@
   color: var(--color-text-muted);
 }
 
-/* Event badges */
+/* Event badges: success / danger / neutral */
 .security-badge {
   display: inline-block;
   padding: 0.1rem 0.5rem;
@@ -63,6 +64,8 @@
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+  background-color: var(--color-page);
+  color: var(--color-text-muted);
 }
 
 .security-badge--success {
@@ -73,4 +76,9 @@
 .security-badge--danger {
   background-color: var(--color-danger-soft);
   color: var(--color-danger);
+}
+
+.security-badge--info {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-dark);
 }

@@ -1,34 +1,150 @@
 -- ============================================================================
--- 01_schema.sql - Candidate Portal database schema
--- Owner: Member 1 - Ahmed Hany (Database, Auth & Security)
+-- 01_schema.sql - Online Examination System database schema
+-- Owner: Ahmed Hany (member1) - Team Lead, Database, Auth & Security
 -- ----------------------------------------------------------------------------
 -- MILESTONE M0 PLACEHOLDER
--- This file only contains the plan. Ahmed Hany writes the real SQL in
--- Milestone M1 and runs it in the Supabase Dashboard -> SQL Editor.
+-- This file documents the plan. Ahmed Hany writes the real SQL in Milestone M1
+-- and runs it in the Supabase Dashboard -> SQL Editor.
 --
 -- Run order (see PLAN.md section 6):
---   1. 01_schema.sql   <- this file (tables, foreign keys, trigger)
---   2. 02_rls.sql      (enable RLS + policies)
---   3. 03_storage.sql  (private "cvs" bucket + storage policies)
---   4. 04_seed_jobs.sql (Member 2 - Ibrahim Lotfy)
+--   1. 01_schema.sql    <- this file (tables, foreign keys, trigger, grading RPC)
+--   2. 02_rls.sql        (enable RLS + role policies)
+--   3. 04_seed_exams.sql (Ibrahim Abduljawad, member4 - 2 subjects, 2 exams)
 --
--- Tables to create, in this exact order (dependencies first):
---   profiles      (id uuid PK -> auth.users, full_name, job_title, cv_url, updated_at)
---   jobs          (id, title, company_name, location, description,
---                  required_skills text, quiz_questions jsonb, created_at)
---   applications  (id, user_id -> profiles.id, job_id -> jobs.id,
---                  quiz_score int 0-5, ai_match_score int 0-100,
---                  ai_strengths jsonb, ai_weaknesses jsonb,
---                  status text default 'Submitted', created_at,
---                  UNIQUE(user_id, job_id))
---   security_logs (id, user_email text, event_type text, details text, created_at)
---                 ^ no foreign key on user_email: failed logins have no user row
---
--- Also required here:
---   - CHECK constraints on quiz_score (0..5) and ai_match_score (0..100)
---   - DEFAULT now() on every created_at / updated_at
---   - A trigger on auth.users that inserts a blank profiles row on signup
---     (SECURITY DEFINER) so the frontend never races the RLS policy.
+-- There is no 03_*.sql file: this system stores no uploaded files, so there is
+-- no Supabase Storage bucket at all.
 -- ============================================================================
 
--- TODO(Member 1 - Ahmed Hany): write the schema in Milestone M1.
+-- ============================================================================
+-- TABLES - create in this exact order, dependencies first
+-- ============================================================================
+--
+-- 1) profiles  - one row per auth user, created by the trigger below
+--      id         uuid primary key references auth.users(id) on delete cascade
+--      full_name  text not null default ''
+--      email      text not null
+--      role       text not null default 'student'
+--                 check (role in ('student', 'doctor', 'admin'))
+--      is_active  boolean not null default true      -- admin can deactivate
+--      created_at timestamptz not null default now()
+--
+--    Why is_active exists: "Manage users -> activate/deactivate" is an admin
+--    feature, and deleting an auth user would destroy their exam history.
+--    A deactivated user keeps reading their own results but cannot sign in to
+--    take new exams (enforced by RLS + the login check).
+--
+-- 2) subjects - what an exam is about; a doctor can be assigned to a subject
+--      id         uuid primary key default gen_random_uuid()
+--      name       text not null
+--      code       text not null unique            -- e.g. 'CS201'
+--      doctor_id  uuid references profiles(id) on delete set null
+--      created_at timestamptz not null default now()
+--
+-- 3) exams
+--      id               uuid primary key default gen_random_uuid()
+--      subject_id       uuid not null references subjects(id) on delete cascade
+--      title            text not null
+--      description      text
+--      duration_minutes int  not null check (duration_minutes > 0)
+--      total_marks      int  not null check (total_marks > 0)
+--      start_time       timestamptz                    -- null = open immediately
+--      end_time         timestamptz                    -- null = no deadline
+--      created_by       uuid not null references profiles(id) on delete cascade
+--      is_active        boolean not null default true  -- "published" flag
+--      created_at       timestamptz not null default now()
+--
+-- 4) questions
+--      id            uuid primary key default gen_random_uuid()
+--      exam_id       uuid not null references exams(id) on delete cascade
+--      question_text text not null
+--      marks         int  not null check (marks > 0)
+--      order_index   int  not null                     -- 1..n display order
+--
+-- 5) options  - four rows per question, exactly one with is_correct = true
+--      id          uuid primary key default gen_random_uuid()
+--      question_id uuid not null references questions(id) on delete cascade
+--      option_text text not null
+--      is_correct  boolean not null default false
+--
+-- 6) attempts  - one exam taken by one student
+--      id           uuid primary key default gen_random_uuid()
+--      exam_id      uuid not null references exams(id) on delete cascade
+--      student_id   uuid not null references profiles(id) on delete cascade
+--      started_at   timestamptz not null default now()
+--      submitted_at timestamptz
+--      score        int                         -- null until submitted
+--      status       text not null default 'in_progress'
+--                   check (status in ('in_progress', 'submitted', 'auto_submitted'))
+--      unique (exam_id, student_id)             -- "one attempt only", the rule
+--
+--    The unique constraint is the real enforcement of "one attempt only".
+--    The frontend check is only there to show a friendly message.
+--
+-- 7) answers  - the option the student picked for one question
+--      id                 uuid primary key default gen_random_uuid()
+--      attempt_id         uuid not null references attempts(id) on delete cascade
+--      question_id        uuid not null references questions(id) on delete cascade
+--      selected_option_id uuid references options(id) on delete set null
+--      unique (attempt_id, question_id)         -- one answer per question
+--
+-- 8) security_logs - kept exactly as in the old project (append-only audit)
+--      id         uuid primary key default gen_random_uuid()
+--      user_email text
+--      event_type text        -- LOGIN_SUCCESS | LOGIN_FAILED | LOGOUT |
+--                             -- EXAM_STARTED | EXAM_SUBMITTED | BLOCKED_ACTION
+--      details    text
+--      created_at timestamptz not null default now()
+--      -- no foreign key on user_email: a failed login has no user row yet
+--
+-- Keep every created_at/updated_at column with default now(), and index the
+-- columns used by the dashboards: exams(created_by), attempts(exam_id),
+-- attempts(student_id), answers(attempt_id).
+
+-- ============================================================================
+-- SIGNUP TRIGGER - every new auth user gets a profiles row, role 'student'
+-- ============================================================================
+--
+-- create function public.handle_new_user() returns trigger
+--   language plpgsql security definer set search_path = public as $$
+-- begin
+--   insert into public.profiles (id, full_name, email, role)
+--   values (
+--     new.id,
+--     coalesce(new.raw_user_meta_data ->> 'full_name', ''),
+--     new.email,
+--     'student'          -- hard-coded: a visitor can never register as doctor
+--   );
+--   return new;
+-- end; $$;
+--
+-- create trigger on_auth_user_created
+--   after insert on auth.users
+--   for each row execute function public.handle_new_user();
+--
+-- Why security definer: the insert happens before a session exists, so RLS
+-- would reject it otherwise. The role is hard-coded here - never taken from
+-- the request - which is what stops self-service "become an admin".
+
+-- ============================================================================
+-- GRADING FUNCTION (RPC) - the one piece of server-side logic in the project
+-- ============================================================================
+--
+-- Students must never be able to read options.is_correct (see 02_rls.sql), so
+-- grading cannot simply be a SELECT performed by the browser. The plan is a
+-- security definer function that grades and closes the attempt atomically:
+--
+-- submit_attempt(p_attempt_id uuid, p_answers jsonb) returns jsonb
+--   1. check the caller owns the attempt and it is still 'in_progress'
+--   2. upsert the answers rows
+--   3. score = sum of questions.marks where the selected option is correct
+--   4. set attempts.score / submitted_at / status ('submitted' or
+--      'auto_submitted' when the caller says the timer expired)
+--   5. return { score, total, correct_count, question_count }
+--
+-- Ibrahim Abduljawad (member4) keeps gradeExam.js and gradingService.js as the
+-- JavaScript reference implementation of the same rule; it is used by the
+-- doctor's result screen and by the offline unit checks, so the two must agree.
+--
+-- TODO(Ahmed Hany, member1 - Milestone M1):
+--   Write the tables, indexes, handle_new_user trigger and submit_attempt RPC,
+--   then run this file in the SQL Editor and verify all eight tables exist.

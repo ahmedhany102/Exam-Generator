@@ -3,21 +3,27 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Loader from './Loader.jsx';
 
 // ============================================================================
-// Owner: Member 1 - Ahmed Hany (Database, Auth & Security)
+// Owner: Ahmed Hany (member1) - Team Lead, Database, Auth & Security
 // File: components/ProtectedRoute.jsx
 // ----------------------------------------------------------------------------
-// Security requirement: no page that shows personal data may render for a
-// visitor without a session. Instead of repeating an if-check in every page,
-// each protected route in App.jsx is wrapped with this component.
+// Two checks live here, so no page has to repeat them:
 //
-// Three possible states:
-//   1. loading      -> show a spinner (we do not know yet)
-//   2. no session   -> redirect to /login and remember where the user wanted
-//                      to go, so Login.jsx can send them back afterwards
-//   3. has session  -> render the page untouched
+//   1. Is somebody signed in?  -> otherwise redirect to /login and remember the
+//      page they wanted, so Login.jsx can send them back afterwards.
+//   2. Is that person allowed to see this area? -> the `allow` prop is a list of
+//      roles, e.g. <ProtectedRoute allow={['doctor']}>.
+//
+// IMPORTANT, and a favourite defence question: this is a convenience layer for
+// the UI only. The real rule is enforced by Row Level Security in Postgres -
+// if a student forces their browser to render /admin/users, every query still
+// returns nothing and every write is rejected.
+//
+// TODO(Ahmed Hany, member1 - Milestone M1): once the role lookup is live, block
+// unknown roles too (today `role === null` means "not loaded yet", so the
+// allow-list is skipped rather than locking the user out of their own pages).
 // ============================================================================
-export default function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
+export default function ProtectedRoute({ children, allow }) {
+  const { user, role, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -27,6 +33,11 @@ export default function ProtectedRoute({ children }) {
   if (!user) {
     // "state.from" is read by the Login page after a successful sign-in.
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  // Role known but not allowed for this route -> back to the role's home page.
+  if (allow && role && !allow.includes(role)) {
+    return <Navigate to="/" replace />;
   }
 
   return children;
