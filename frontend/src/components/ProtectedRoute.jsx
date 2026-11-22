@@ -6,27 +6,28 @@ import Loader from './Loader.jsx';
 // Owner: Ahmed Hany (member1) - Team Lead, Database, Auth & Security
 // File: components/ProtectedRoute.jsx
 // ----------------------------------------------------------------------------
-// Two checks live here, so no page has to repeat them:
+// Three checks live here, so no page has to repeat them:
 //
-//   1. Is somebody signed in?  -> otherwise redirect to /login and remember the
-//      page they wanted, so Login.jsx can send them back afterwards.
-//   2. Is that person allowed to see this area? -> the `allow` prop is a list of
-//      roles, e.g. <ProtectedRoute allow={['doctor']}>.
+//   1. Is the session still loading?      -> Loader
+//   2. Is somebody signed in?             -> otherwise /login, remembering the
+//      page the user wanted (state.from, read back by Login.jsx)
+//   3. Is that person allowed in here?    -> `allow` is a list of roles, e.g.
+//      <ProtectedRoute allow={['doctor']}>
+//
+// The role question is only answered once roleLoading is false. While it is in
+// flight we show the Loader, so a hard refresh never flashes a redirect based on
+// a role that has not arrived yet.
 //
 // IMPORTANT, and a favourite defence question: this is a convenience layer for
-// the UI only. The real rule is enforced by Row Level Security in Postgres -
-// if a student forces their browser to render /admin/users, every query still
+// the UI only. The real rule is enforced by Row Level Security in Postgres - if
+// a student forces their browser to render /admin/users, every query still
 // returns nothing and every write is rejected.
-//
-// TODO(Ahmed Hany, member1 - Milestone M1): once the role lookup is live, block
-// unknown roles too (today `role === null` means "not loaded yet", so the
-// allow-list is skipped rather than locking the user out of their own pages).
 // ============================================================================
 export default function ProtectedRoute({ children, allow }) {
-  const { user, role, loading } = useAuth();
+  const { user, role, roleLoading, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  if (loading || (user && roleLoading)) {
     return <Loader message="Checking your session..." />;
   }
 
@@ -35,8 +36,10 @@ export default function ProtectedRoute({ children, allow }) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  // Role known but not allowed for this route -> back to the role's home page.
-  if (allow && role && !allow.includes(role)) {
+  // Strict now that the role is known: not allowed means back to the role's own
+  // home page ("/" -> RoleRedirect). A null role (no profiles row, or a
+  // deactivated account) also fails this check.
+  if (allow && !allow.includes(role)) {
     return <Navigate to="/" replace />;
   }
 
