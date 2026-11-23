@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Loader from '../components/Loader.jsx';
+import { supabase } from '../lib/supabaseClient.js';
 import { getOpenAttempt } from '../services/attemptsService.js';
 import { getExamById } from '../services/examsService.js';
 import { getExamStatus, parseDuration } from '../utils/filterExams.js';
@@ -44,22 +45,41 @@ export default function ExamDetails() {
 
       setExam(examData);
 
-      // Cross-owner dependency: attemptsService.getOpenAttempt(examId) belongs
-      // to Ahmed Fayez (member3). While it may throw or return an error before
-      // member3 is merged, we wrap in try/catch and keep attempt = null on failure.
+      let fetchedAttempt = null;
       try {
         const { data: openAttempt } = await getOpenAttempt(examId);
-        if (!cancelled && openAttempt) {
-          setAttempt(openAttempt);
+        if (openAttempt) {
+          fetchedAttempt = openAttempt;
         }
       } catch {
         // Tolerated until member3 lands
-        if (!cancelled) {
-          setAttempt(null);
+      }
+
+      // Belt and braces: check existing attempts (including submitted)
+      if (!fetchedAttempt && supabase) {
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user?.id) {
+            const { data: anyAttempt } = await supabase
+              .from('attempts')
+              .select('id, status, started_at, submitted_at, score')
+              .eq('exam_id', examId)
+              .eq('student_id', user.id)
+              .maybeSingle();
+
+            if (anyAttempt) {
+              fetchedAttempt = anyAttempt;
+            }
+          }
+        } catch {
+          // Ignore
         }
       }
 
       if (!cancelled) {
+        setAttempt(fetchedAttempt);
         setLoading(false);
       }
     }

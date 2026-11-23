@@ -38,6 +38,11 @@ export default function TakeExam() {
   const [isAlreadySubmitted, setIsAlreadySubmitted] = useState(false);
 
   const submittingRef = useRef(false);
+  const answersRef = useRef(answers);
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
 
   // 1. Initial data load and attempt setup
   useEffect(() => {
@@ -87,7 +92,51 @@ export default function TakeExam() {
       } catch (err) {
         // Cross-owner dependency: attemptsService belongs to member3.
         console.warn('attemptsService call threw (waiting for member3):', err);
-        setError(err.message || 'Attempts service unavailable');
+      }
+
+      // Direct fallback if attemptsService threw or is not ready
+      if (!currentAttempt && supabase) {
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user?.id) {
+            const { data: existing } = await supabase
+              .from('attempts')
+              .select('*')
+              .eq('exam_id', examId)
+              .eq('student_id', user.id)
+              .maybeSingle();
+
+            if (existing) {
+              currentAttempt = existing;
+            } else {
+              const { data: inserted, error: insertErr } = await supabase
+                .from('attempts')
+                .insert({
+                  exam_id: examId,
+                  student_id: user.id,
+                  status: 'in_progress',
+                })
+                .select()
+                .single();
+
+              if (inserted) {
+                currentAttempt = inserted;
+              } else if (insertErr?.code === '23505') {
+                const { data: retryExisting } = await supabase
+                  .from('attempts')
+                  .select('*')
+                  .eq('exam_id', examId)
+                  .eq('student_id', user.id)
+                  .single();
+                currentAttempt = retryExisting;
+              }
+            }
+          }
+        } catch (directErr) {
+          console.warn('Direct attempt fallback error:', directErr);
+        }
       }
 
       if (cancelled) return;
@@ -151,14 +200,34 @@ export default function TakeExam() {
       submittingRef.current = true;
       setSubmitting(true);
 
+      const currentAnswers = answersRef.current;
       const answersPayload = questions.map((q) => ({
         question_id: q.id,
-        selected_option_id: answers[q.id] || null,
+        selected_option_id: currentAnswers[q.id] || null,
       }));
 
       try {
         const attemptId = attempt?.id;
-        const res = await submitAttempt(attemptId, answersPayload, { autoSubmitted });
+        let res = null;
+        try {
+          res = await submitAttempt(attemptId, answersPayload, { autoSubmitted });
+        } catch (callErr) {
+          console.warn('submitAttempt threw (calling RPC directly):', callErr);
+          if (supabase) {
+            const { data: rpcData, error: rpcErr } = await supabase.rpc(
+              'submit_attempt',
+              {
+                p_attempt_id: attemptId,
+                p_answers: answersPayload,
+                p_auto_submitted: autoSubmitted,
+              },
+            );
+            res = { data: rpcData, error: rpcErr };
+          } else {
+            throw callErr;
+          }
+        }
+
         if (res?.error) {
           setError(res.error.message || 'Failed to submit exam');
           submittingRef.current = false;
@@ -173,25 +242,29 @@ export default function TakeExam() {
         setSubmitting(false);
       }
     },
-    [attempt?.id, questions, answers, navigate],
+    [attempt?.id, questions, navigate],
   );
 
   // 3. Countdown timer with clearInterval cleanup
   useEffect(() => {
-    if (!attempt || !exam || submitting || isAlreadySubmitted) {
+    if (!attempt?.started_at || !exam?.duration_minutes || isAlreadySubmitted) {
       return;
     }
 
-    if (remainingSeconds !== null && remainingSeconds <= 0) {
+    const startedAt = new Date(attempt.started_at).getTime();
+    const deadline = startedAt + exam.duration_minutes * 60 * 1000;
+
+    // Check immediate expiration
+    const initialSeconds = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+    setRemainingSeconds(initialSeconds);
+
+    if (initialSeconds <= 0) {
       doSubmit(true);
       return;
     }
 
     const interval = setInterval(() => {
-      const startedAt = new Date(attempt.started_at || Date.now()).getTime();
-      const deadline = startedAt + (exam.duration_minutes || 0) * 60 * 1000;
       const secondsLeft = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
-
       setRemainingSeconds(secondsLeft);
 
       if (secondsLeft <= 0) {
@@ -203,7 +276,13 @@ export default function TakeExam() {
     return () => {
       clearInterval(interval);
     };
-  }, [attempt, exam, submitting, isAlreadySubmitted, remainingSeconds, doSubmit]);
+  }, [
+    attempt?.id,
+    attempt?.started_at,
+    exam?.duration_minutes,
+    isAlreadySubmitted,
+    doSubmit,
+  ]);
 
   // 4. Option selection and answer saving
   async function handleSelectOption(questionId, optionId) {
@@ -219,6 +298,20 @@ export default function TakeExam() {
         await saveAnswer(attempt.id, questionId, optionId);
       } catch (err) {
         console.warn('saveAnswer threw (waiting for member3):', err);
+        if (supabase) {
+          try {
+            await supabase.from('answers').upsert(
+              {
+                attempt_id: attempt.id,
+                question_id: questionId,
+                selected_option_id: optionId,
+              },
+              { onConflict: 'attempt_id,question_id' },
+            );
+          } catch (upsertErr) {
+            console.warn('Fallback upsert failed:', upsertErr);
+          }
+        }
       }
     }
   }
