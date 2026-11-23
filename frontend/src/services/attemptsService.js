@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabaseClient.js';
 
+function hasText(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 // ============================================================================
 // Owner: Ahmed Fayez (member3) - Doctor Dashboard & Exam Creation
 // File: services/attemptsService.js
@@ -22,7 +26,7 @@ import { supabase } from '../lib/supabaseClient.js';
 //   submitAttempt(attemptId, answers, options) -> { data: { score, total,
 //                                                   correctCount, questionCount } }
 //
-// TODO(Ahmed Fayez, member3 - Milestone M3):
+// Implementation details:
 //   1. startAttempt: insert { exam_id, student_id, status: 'in_progress' } and
 //      treat Postgres error 23505 (the unique(exam_id, student_id) rule) as a
 //      resume, not a failure: read the row that already exists and return it.
@@ -33,8 +37,8 @@ import { supabase } from '../lib/supabaseClient.js';
 //   4. submitAttempt: exactly one supabase.rpc('submit_attempt', ...) call and
 //      never read options.is_correct in the browser (RLS hides it from
 //      students; grading belongs in the security-definer function).
-//   5. Return { data, error } from every function instead of throwing, so a
-//      page can print the message in .alert.alert-error instead of crashing.
+//   5. Return each function's documented result shape with errors instead of
+//      throwing, so callers can display failures without crashing.
 // ============================================================================
 
 /**
@@ -47,7 +51,7 @@ import { supabase } from '../lib/supabaseClient.js';
  * @param {string} examId  exams.id
  * @returns {Promise<{ data: object|null, error: Error|null }>}
  *
- * TODO(Ahmed Fayez, member3 - Milestone M3):
+ * Implementation details:
  *   1. Take student_id from supabase.auth.getUser(), never from a form field:
  *      the RLS policy compares it with the JWT (database/02_rls.sql).
  *   2. supabase.from('attempts')
@@ -58,12 +62,47 @@ import { supabase } from '../lib/supabaseClient.js';
  *      click on "Start exam" must not look like a database fault.
  */
 export async function startAttempt(examId) {
-  void supabase;
-  void examId;
+  if (!supabase) {
+    return { data: null, error: new Error('Supabase is not configured.') };
+  }
+  if (!hasText(examId)) {
+    return { data: null, error: new Error('A valid exam id is required.') };
+  }
 
-  throw new Error(
-    'startAttempt() is not implemented yet (Ahmed Fayez - member3, Milestone M3).',
-  );
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) return { data: null, error: userError };
+    const studentId = userData?.user?.id;
+    if (!studentId) return { data: null, error: new Error('You must be signed in to start an exam.') };
+
+    const inserted = await supabase
+      .from('attempts')
+      .insert({ exam_id: examId, student_id: studentId, status: 'in_progress' })
+      .select('*')
+      .single();
+
+    if (!inserted.error) return { data: inserted.data, error: null };
+
+    // PostgreSQL unique(exam_id, student_id): resume the existing attempt only
+    // if it is still open. Submitted attempts must not be restarted.
+    if (inserted.error.code === '23505') {
+      const existing = await supabase
+        .from('attempts')
+        .select('*')
+        .eq('exam_id', examId)
+        .eq('student_id', studentId)
+        .eq('status', 'in_progress')
+        .maybeSingle();
+      if (!existing.error && existing.data) {
+        return { data: existing.data, error: null };
+      }
+      return { data: null, error: existing.error ?? inserted.error };
+    }
+
+    return { data: null, error: inserted.error };
+  } catch (error) {
+    return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+  }
 }
 
 /**
@@ -76,7 +115,7 @@ export async function startAttempt(examId) {
  * @param {string} examId  exams.id
  * @returns {Promise<{ data: object|null, error: Error|null }>}
  *
- * TODO(Ahmed Fayez, member3 - Milestone M3):
+ * Implementation details:
  *   supabase.from('attempts')
  *     .select('*')
  *     .eq('exam_id', examId)
@@ -87,12 +126,30 @@ export async function startAttempt(examId) {
  *   to the caller's own attempts, but it keeps the intention readable here.
  */
 export async function getOpenAttempt(examId) {
-  void supabase;
-  void examId;
+  if (!supabase) {
+    return { data: null, error: new Error('Supabase is not configured.') };
+  }
+  if (!hasText(examId)) {
+    return { data: null, error: new Error('A valid exam id is required.') };
+  }
 
-  throw new Error(
-    'getOpenAttempt() is not implemented yet (Ahmed Fayez - member3, Milestone M3).',
-  );
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError) return { data: null, error: userError };
+    const uid = userData?.user?.id;
+    if (!uid) return { data: null, error: new Error('You must be signed in.') };
+
+    const { data, error } = await supabase
+      .from('attempts')
+      .select('*')
+      .eq('exam_id', examId)
+      .eq('student_id', uid)
+      .eq('status', 'in_progress')
+      .maybeSingle();
+    return { data, error };
+  } catch (error) {
+    return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+  }
 }
 
 /**
@@ -106,7 +163,7 @@ export async function getOpenAttempt(examId) {
  * @param {string} selectedOptionId  options.id of the chosen option
  * @returns {Promise<{ error: Error|null }>}
  *
- * TODO(Ahmed Fayez, member3 - Milestone M3):
+ * Implementation details:
  *   supabase.from('answers').upsert(
  *     { attempt_id: attemptId, question_id: questionId,
  *       selected_option_id: selectedOptionId },
@@ -116,14 +173,28 @@ export async function getOpenAttempt(examId) {
  *   question_id) means a plain insert would collide with the first answer.
  */
 export async function saveAnswer(attemptId, questionId, selectedOptionId) {
-  void supabase;
-  void attemptId;
-  void questionId;
-  void selectedOptionId;
+  if (!supabase) {
+    return { error: new Error('Supabase is not configured.') };
+  }
+  if (!hasText(attemptId) || !hasText(questionId) || !hasText(selectedOptionId)) {
+    return { error: new Error('Attempt, question and selected option are required.') };
+  }
 
-  throw new Error(
-    'saveAnswer() is not implemented yet (Ahmed Fayez - member3, Milestone M3).',
-  );
+  try {
+    const { error } = await supabase
+      .from('answers')
+      .upsert(
+        {
+          attempt_id: attemptId,
+          question_id: questionId,
+          selected_option_id: selectedOptionId,
+        },
+        { onConflict: 'attempt_id,question_id' },
+      );
+    return { error };
+  } catch (error) {
+    return { error: error instanceof Error ? error : new Error(String(error)) };
+  }
 }
 
 /**
@@ -142,7 +213,7 @@ export async function saveAnswer(attemptId, questionId, selectedOptionId) {
  * @returns {Promise<{ data: { score: number, total: number, correctCount: number,
  *   questionCount: number } | null, error: Error|null }>}
  *
- * TODO(Ahmed Fayez, member3 - Milestone M3):
+ * Implementation details:
  *   1. supabase.rpc('submit_attempt', {
  *        p_attempt_id: attemptId,
  *        p_answers: answers,
@@ -156,12 +227,65 @@ export async function saveAnswer(attemptId, questionId, selectedOptionId) {
  *      MyResults.jsx (member2) render those four numbers directly.
  */
 export async function submitAttempt(attemptId, answers, options = {}) {
-  void supabase;
-  void attemptId;
-  void answers;
-  void options;
+  if (!supabase) {
+    return { data: null, error: new Error('Supabase is not configured.') };
+  }
+  if (!hasText(attemptId)) {
+    return { data: null, error: new Error('A valid attempt id is required.') };
+  }
+  if (!Array.isArray(answers)) {
+    return { data: null, error: new Error('Answers must be provided as an array.') };
+  }
+  const submitOptions = typeof options === 'boolean'
+    ? { autoSubmitted: options }
+    : (options && typeof options === 'object' ? options : {});
+  const invalidAnswer = answers.some((answer) => (
+    !answer
+    || typeof answer.question_id !== 'string'
+    || !answer.question_id.trim()
+    || !Object.prototype.hasOwnProperty.call(answer, 'selected_option_id')
+    || (
+      answer.selected_option_id !== null
+      && (typeof answer.selected_option_id !== 'string' || !answer.selected_option_id.trim())
+    )
+  ));
+  if (invalidAnswer) {
+    return { data: null, error: new Error('Each answer needs a question id and a selected option id or null.') };
+  }
 
-  throw new Error(
-    'submitAttempt() is not implemented yet (Ahmed Fayez - member3, Milestone M3).',
-  );
+  try {
+    // Grading is intentionally server-side: options.is_correct is inaccessible
+    // to students, and submit_attempt() is the only authoritative score writer.
+    const { data, error } = await supabase.rpc('submit_attempt', {
+      p_attempt_id: attemptId,
+      p_answers: answers,
+      p_auto_submitted: submitOptions.autoSubmitted === true,
+    });
+    if (error) return { data: null, error };
+
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return { data: null, error: new Error('The submit_attempt RPC returned an invalid result.') };
+    }
+    const result = {
+      score: data.score,
+      total: data.total,
+      correctCount: data.correctCount ?? data.correct_count,
+      questionCount: data.questionCount ?? data.question_count,
+    };
+    const resultValues = Object.values(result);
+    if (
+      resultValues.some((value) => !Number.isInteger(value) || value < 0)
+      || result.score > result.total
+      || result.correctCount > result.questionCount
+    ) {
+      return { data: null, error: new Error('The submit_attempt RPC returned incomplete or invalid score data.') };
+    }
+
+    return {
+      data: result,
+      error: null,
+    };
+  } catch (error) {
+    return { data: null, error: error instanceof Error ? error : new Error(String(error)) };
+  }
 }
