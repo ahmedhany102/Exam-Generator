@@ -37,12 +37,26 @@
  *   subject filter is skipped when subjectId is falsy.
  */
 export function filterExams(exams, query, subjectId) {
-  void exams;
-  void query;
-  void subjectId;
-  throw new Error(
-    'filterExams() is not implemented yet (Ibrahim Lotfy - member2, Milestone M2).',
-  );
+  const term = (query ?? '').trim().toLowerCase();
+  return (exams ?? []).filter((exam) => {
+    if (!exam) return false;
+    if (subjectId && exam.subject_id !== subjectId) {
+      return false;
+    }
+    if (!term) {
+      return true;
+    }
+    const title = (exam.title ?? '').toLowerCase();
+    const description = (exam.description ?? '').toLowerCase();
+    const subjectName = (exam.subjects?.name ?? '').toLowerCase();
+    const subjectCode = (exam.subjects?.code ?? '').toLowerCase();
+    return (
+      title.includes(term) ||
+      description.includes(term) ||
+      subjectName.includes(term) ||
+      subjectCode.includes(term)
+    );
+  });
 }
 
 /**
@@ -64,28 +78,17 @@ export function filterExams(exams, query, subjectId) {
  *   return 'open';
  */
 export function getExamStatus(exam, now = new Date()) {
-  void exam;
-  void now;
-  throw new Error(
-    'getExamStatus() is not implemented yet (Ibrahim Lotfy - member2, Milestone M2).',
-  );
+  if (!exam || exam.is_active === false) return 'closed';
+  const nowDate = now instanceof Date ? now : new Date(now);
+  if (exam.start_time && nowDate < new Date(exam.start_time)) return 'upcoming';
+  if (exam.end_time && nowDate > new Date(exam.end_time)) return 'closed';
+  return 'open';
 }
 
-/**
- * Turn a duration in minutes into the short label shown on a card.
- *
- * Kept separate from the JSX so the same string is written in exactly one place
- * (card, details panel and the timer header all read it from here).
- *
- * @param {number} minutes  exams.duration_minutes, e.g. 45
- * @returns {string} e.g. "45 min"
- *
- * TODO(Ibrahim Lotfy, member2 - Milestone M2):
- *   return `${minutes} min`;   (with a guard for a missing value)
- */
 export function parseDuration(minutes) {
-  void minutes;
-  throw new Error(
-    'parseDuration() is not implemented yet (Ibrahim Lotfy - member2, Milestone M2).',
-  );
+  const num = Number(minutes);
+  if (!minutes || isNaN(num) || num <= 0) {
+    return '0 min';
+  }
+  return `${num} min`;
 }

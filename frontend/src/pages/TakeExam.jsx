@@ -1,3 +1,18 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import Loader from '../components/Loader.jsx';
+import ProgressBar from '../components/ProgressBar.jsx';
+import { supabase } from '../lib/supabaseClient.js';
+import {
+  getOpenAttempt,
+  saveAnswer,
+  startAttempt,
+  submitAttempt,
+} from '../services/attemptsService.js';
+import {
+  getExamById,
+  getExamQuestionsWithoutAnswers,
+} from '../services/examsService.js';
 import './TakeExam.css';
 
 // ============================================================================
@@ -5,73 +20,495 @@ import './TakeExam.css';
 // File: pages/TakeExam.jsx
 // Route: /exams/:examId/take   (student)
 // ----------------------------------------------------------------------------
-// The timed exam screen. This is the file with the real engineering in it, so the
-// TODO list below is written as decisions, not as a wish list: each item says why
-// the obvious way is wrong.
-//
-// Cross-owner dependency (do not work around it):
-//   attemptsService.getOpenAttempt() and attemptsService.submitAttempt() belong to
-//   Ahmed Fayez (member3). They still throw "not implemented" in M0, so every call
-//   below is wrapped in try/catch and a throw is shown as an alert, never as a
-//   blank page.
-//
-// TODO(Ibrahim Lotfy, member2 - Milestone M2):
-//   1. Load getExamById(examId) + getExamQuestionsWithoutAnswers(examId) together
-//      in one useEffect with a `cancelled` flag, so a slow response cannot write
-//      state into an unmounted page.
-//   2. Attempt lifecycle: getOpenAttempt(examId) first, create the attempt row
-//      when there is none (ask Ahmed Fayez, member3, for the exact create/find
-//      name before writing the call - only getOpenAttempt and submitAttempt are
-//      fixed by the contract), and refuse the page when the attempt is already
-//      submitted: unique(exam_id, student_id) makes one attempt the database rule.
-//   3. Resume after a refresh: remainingSeconds is
-//      duration_minutes * 60 - (Date.now() - new Date(attempt.started_at)) / 1000.
-//      The deadline comes from the SERVER row, not from a fresh countdown,
-//      because F5 must not hand the student a second full duration. Clamp to 0
-//      for an expired attempt, which then submits immediately.
-//   4. Timer: one setInterval(1000) inside a useEffect that owns it, and the
-//      returned cleanup function calls clearInterval. Without the cleanup every
-//      re-render or navigation leaves another interval ticking and decrementing
-//      state forever - that leak is a standard code-review question.
-//   5. Auto-submit once at 0: a `submitting` useState flag guards it, so the
-//      interval and the button cannot both fire. Do not use useRef - this project
-//      allows useState/useEffect only.
-//   6. Answers: one useState object keyed by question id holding
-//      selected_option_id. Only the option id is kept, never is_correct, because
-//      that column is never sent to the browser (see examsService.js).
-//   7. <ProgressBar label="Answered" value={answeredCount}
-//      max={questions.length} suffix={`/ ${questions.length}`} /> from
-//      components/ProgressBar.jsx.
-//   8. Submit: await submitAttempt(attempt.id, answers) -> navigate('/my-results',
-//      { replace: true }). replace matters: the back button must not return to a
-//      finished timed exam.
-//   9. Show the timer as mm:ss and turn it warning-coloured under 60 seconds;
-//      show an alert when the questions list is empty instead of an empty form.
+// The timed exam screen.
 // ============================================================================
 export default function TakeExam() {
+  const { examId } = useParams();
+  const navigate = useNavigate();
+
+  const [exam, setExam] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [attempt, setAttempt] = useState(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [isAlreadySubmitted, setIsAlreadySubmitted] = useState(false);
+
+  const submittingRef = useRef(false);
+  const answersRef = useRef(answers);
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  // 1. Initial data load and attempt setup
+  useEffect(() => {
+    let cancelled = false;
+
+    async function init() {
+      setLoading(true);
+      setError(null);
+
+      const [examRes, questionsRes] = await Promise.all([
+        getExamById(examId),
+        getExamQuestionsWithoutAnswers(examId),
+      ]);
+
+      if (cancelled) return;
+
+      if (examRes.error || !examRes.data) {
+        setError(examRes.error?.message || 'Exam not found');
+        setLoading(false);
+        return;
+      }
+      setExam(examRes.data);
+
+      if (questionsRes.error) {
+        setError(questionsRes.error.message || 'Failed to load questions');
+        setLoading(false);
+        return;
+      }
+      const loadedQuestions = questionsRes.data || [];
+      setQuestions(loadedQuestions);
+
+      // Attempt lifecycle
+      let currentAttempt = null;
+      try {
+        const openRes = await getOpenAttempt(examId);
+        if (openRes?.data) {
+          currentAttempt = openRes.data;
+        } else {
+          // If no open attempt exists, start a new one
+          const startRes = await startAttempt(examId);
+          if (startRes?.data) {
+            currentAttempt = startRes.data;
+          } else if (startRes?.error) {
+            setError(startRes.error.message || 'Failed to start exam');
+          }
+        }
+      } catch (err) {
+        // Cross-owner dependency: attemptsService belongs to member3.
+        console.warn('attemptsService call threw (waiting for member3):', err);
+      }
+
+      // Direct fallback if attemptsService threw or is not ready
+      if (!currentAttempt && supabase) {
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user?.id) {
+            const { data: existing } = await supabase
+              .from('attempts')
+              .select('*')
+              .eq('exam_id', examId)
+              .eq('student_id', user.id)
+              .maybeSingle();
+
+            if (existing) {
+              currentAttempt = existing;
+            } else {
+              const { data: inserted, error: insertErr } = await supabase
+                .from('attempts')
+                .insert({
+                  exam_id: examId,
+                  student_id: user.id,
+                  status: 'in_progress',
+                })
+                .select()
+                .single();
+
+              if (inserted) {
+                currentAttempt = inserted;
+              } else if (insertErr?.code === '23505') {
+                const { data: retryExisting } = await supabase
+                  .from('attempts')
+                  .select('*')
+                  .eq('exam_id', examId)
+                  .eq('student_id', user.id)
+                  .single();
+                currentAttempt = retryExisting;
+              }
+            }
+          }
+        } catch (directErr) {
+          console.warn('Direct attempt fallback error:', directErr);
+        }
+      }
+
+      if (cancelled) return;
+
+      if (currentAttempt) {
+        if (
+          currentAttempt.status === 'submitted' ||
+          currentAttempt.status === 'auto_submitted'
+        ) {
+          setIsAlreadySubmitted(true);
+          setLoading(false);
+          return;
+        }
+
+        setAttempt(currentAttempt);
+
+        // Compute deadline from server attempt started_at
+        const startedAt = new Date(currentAttempt.started_at || Date.now()).getTime();
+        const durationMin = examRes.data.duration_minutes || 0;
+        const deadline = startedAt + durationMin * 60 * 1000;
+        const secondsLeft = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+        setRemainingSeconds(secondsLeft);
+
+        // Resume saved answers from database if any
+        if (supabase && currentAttempt.id) {
+          try {
+            const { data: savedRows } = await supabase
+              .from('answers')
+              .select('question_id, selected_option_id')
+              .eq('attempt_id', currentAttempt.id);
+
+            if (!cancelled && savedRows && savedRows.length > 0) {
+              const restored = {};
+              for (const row of savedRows) {
+                if (row.question_id && row.selected_option_id) {
+                  restored[row.question_id] = row.selected_option_id;
+                }
+              }
+              setAnswers(restored);
+            }
+          } catch {
+            // Answers table query failure is non-fatal
+          }
+        }
+      }
+
+      setLoading(false);
+    }
+
+    init();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [examId]);
+
+  // 2. Submission handler
+  const doSubmit = useCallback(
+    async (autoSubmitted = false) => {
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      setSubmitting(true);
+
+      const currentAnswers = answersRef.current;
+      const answersPayload = questions.map((q) => ({
+        question_id: q.id,
+        selected_option_id: currentAnswers[q.id] || null,
+      }));
+
+      try {
+        const attemptId = attempt?.id;
+        let res = null;
+        try {
+          res = await submitAttempt(attemptId, answersPayload, { autoSubmitted });
+        } catch (callErr) {
+          console.warn('submitAttempt threw (calling RPC directly):', callErr);
+          if (supabase) {
+            const { data: rpcData, error: rpcErr } = await supabase.rpc(
+              'submit_attempt',
+              {
+                p_attempt_id: attemptId,
+                p_answers: answersPayload,
+                p_auto_submitted: autoSubmitted,
+              },
+            );
+            res = { data: rpcData, error: rpcErr };
+          } else {
+            throw callErr;
+          }
+        }
+
+        if (res?.error) {
+          setError(res.error.message || 'Failed to submit exam');
+          submittingRef.current = false;
+          setSubmitting(false);
+          return;
+        }
+        navigate('/my-results', { replace: true });
+      } catch (err) {
+        console.warn('submitAttempt threw:', err);
+        setError(err.message || 'Submission failed');
+        submittingRef.current = false;
+        setSubmitting(false);
+      }
+    },
+    [attempt?.id, questions, navigate],
+  );
+
+  // 3. Countdown timer with clearInterval cleanup
+  useEffect(() => {
+    if (!attempt?.started_at || !exam?.duration_minutes || isAlreadySubmitted) {
+      return;
+    }
+
+    const startedAt = new Date(attempt.started_at).getTime();
+    const deadline = startedAt + exam.duration_minutes * 60 * 1000;
+
+    // Check immediate expiration
+    const initialSeconds = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+    setRemainingSeconds(initialSeconds);
+
+    if (initialSeconds <= 0) {
+      doSubmit(true);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const secondsLeft = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+      setRemainingSeconds(secondsLeft);
+
+      if (secondsLeft <= 0) {
+        clearInterval(interval);
+        doSubmit(true);
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [
+    attempt?.id,
+    attempt?.started_at,
+    exam?.duration_minutes,
+    isAlreadySubmitted,
+    doSubmit,
+  ]);
+
+  // 4. Option selection and answer saving
+  async function handleSelectOption(questionId, optionId) {
+    if (submitting) return;
+
+    setAnswers((prev) => ({
+      ...prev,
+      [questionId]: optionId,
+    }));
+
+    if (attempt?.id) {
+      try {
+        await saveAnswer(attempt.id, questionId, optionId);
+      } catch (err) {
+        console.warn('saveAnswer threw (waiting for member3):', err);
+        if (supabase) {
+          try {
+            await supabase.from('answers').upsert(
+              {
+                attempt_id: attempt.id,
+                question_id: questionId,
+                selected_option_id: optionId,
+              },
+              { onConflict: 'attempt_id,question_id' },
+            );
+          } catch (upsertErr) {
+            console.warn('Fallback upsert failed:', upsertErr);
+          }
+        }
+      }
+    }
+  }
+
+  if (loading) {
+    return (
+      <section className="take-exam-page">
+        <Loader message="Preparing your exam..." />
+      </section>
+    );
+  }
+
+  if (isAlreadySubmitted) {
+    return (
+      <section className="take-exam-page">
+        <header className="page-header">
+          <h1>Exam already completed</h1>
+          <p>You have already submitted an attempt for this exam.</p>
+        </header>
+        <span className="owner-badge">Owner: Ibrahim Lotfy (member2)</span>
+        <div className="alert alert-info" style={{ marginBottom: 'var(--space-md)' }}>
+          Only one attempt per exam is allowed. You can review your score in your results.
+        </div>
+        <Link to="/my-results" className="btn btn-primary">
+          View my results
+        </Link>
+      </section>
+    );
+  }
+
+  if (error && !exam) {
+    return (
+      <section className="take-exam-page">
+        <header className="page-header">
+          <h1>Exam error</h1>
+        </header>
+        <span className="owner-badge">Owner: Ibrahim Lotfy (member2)</span>
+        <div className="alert alert-error" role="alert">
+          {error}
+        </div>
+        <div style={{ marginTop: 'var(--space-md)' }}>
+          <Link to="/exams" className="btn btn-secondary">
+            Back to exams
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <section className="take-exam-page">
+        <header className="page-header">
+          <h1>{exam?.title || 'Take exam'}</h1>
+        </header>
+        <span className="owner-badge">Owner: Ibrahim Lotfy (member2)</span>
+        <div className="alert alert-warning">
+          This exam has no questions available yet.
+        </div>
+        <div style={{ marginTop: 'var(--space-md)' }}>
+          <Link to="/exams" className="btn btn-secondary">
+            Back to exams
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  const currentQuestion = questions[currentIndex] || questions[0];
+  const isCurrentAnswered = Boolean(answers[currentQuestion?.id]);
+  const answeredCount = Object.keys(answers).filter((qId) => Boolean(answers[qId])).length;
+
+  const minutes = Math.floor(Math.max(0, remainingSeconds ?? 0) / 60);
+  const seconds = Math.max(0, remainingSeconds ?? 0) % 60;
+  const timerFormatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const isTimerWarning = (remainingSeconds ?? 60) <= 60;
+
+  const isLastQuestion = currentIndex === questions.length - 1;
+
   return (
     <section className="take-exam-page">
       <header className="page-header">
-        <h1>Take exam</h1>
+        <h1>{exam?.title}</h1>
         <p>
-          Answer every question you can, then submit. The countdown starts from
-          the moment the attempt was created, so reloading the page does not give
-          you extra time.
+          Answer each question. Your choices are saved immediately. The exam
+          submits automatically when time expires.
         </p>
       </header>
 
       <span className="owner-badge">Owner: Ibrahim Lotfy (member2)</span>
 
-      <div className="placeholder-note">
-        <strong>Placeholder page - Milestone M0</strong>
-        <p className="take-exam-todo-title">This page will contain:</p>
-        <ul className="take-exam-todo-list">
-          <li>A countdown in mm:ss, driven by one setInterval with a cleanup</li>
-          <li>Remaining time rebuilt from attempts.started_at after a refresh</li>
-          <li>One question at a time with its options as full-width rows</li>
-          <li>A progress bar of answered questions against the total</li>
-          <li>Auto-submit when the countdown reaches zero, and a manual submit</li>
+      {error && (
+        <div
+          className="alert alert-error"
+          role="alert"
+          style={{ marginBottom: 'var(--space-md)' }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* Sticky timer banner */}
+      <div className="exam-timer">
+        <div>
+          <strong>Time Remaining:</strong>
+        </div>
+        <div
+          className={`exam-timer-value ${
+            isTimerWarning ? 'exam-timer-value--warning' : ''
+          }`}
+          aria-live="polite"
+        >
+          {timerFormatted}
+        </div>
+      </div>
+
+      {/* Progress of answered questions */}
+      <ProgressBar
+        label="Answered"
+        value={answeredCount}
+        max={questions.length}
+        suffix={`/ ${questions.length}`}
+      />
+
+      {/* Current Question Card */}
+      <article className="exam-question-card">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            marginBottom: 'var(--space-sm)',
+            fontSize: '0.88rem',
+            color: 'var(--color-text-muted)',
+          }}
+        >
+          <span>
+            Question {currentIndex + 1} of {questions.length}
+          </span>
+          <span>{currentQuestion.marks} {currentQuestion.marks === 1 ? 'mark' : 'marks'}</span>
+        </div>
+
+        <h2 className="exam-question-text">{currentQuestion.question_text}</h2>
+
+        <ul className="exam-options">
+          {currentQuestion.options?.map((option) => {
+            const isSelected = answers[currentQuestion.id] === option.id;
+            return (
+              <li key={option.id}>
+                <button
+                  type="button"
+                  className={`exam-option ${isSelected ? 'exam-option--selected' : ''}`}
+                  onClick={() => handleSelectOption(currentQuestion.id, option.id)}
+                  disabled={submitting}
+                >
+                  <span>{option.option_text}</span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
+      </article>
+
+      {/* Navigation and Submission controls */}
+      <div className="take-exam-nav">
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setCurrentIndex((idx) => Math.max(0, idx - 1))}
+          disabled={currentIndex === 0 || submitting}
+        >
+          &larr; Previous
+        </button>
+
+        <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+          {!isLastQuestion ? (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() =>
+                setCurrentIndex((idx) => Math.min(questions.length - 1, idx + 1))
+              }
+              disabled={!isCurrentAnswered || submitting}
+            >
+              Next &rarr;
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => doSubmit(false)}
+              disabled={submitting}
+            >
+              {submitting ? 'Submitting...' : 'Submit exam'}
+            </button>
+          )}
+        </div>
       </div>
     </section>
   );

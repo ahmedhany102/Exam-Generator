@@ -49,10 +49,22 @@ import { supabase } from '../lib/supabaseClient.js';
  *     .order('start_time', { ascending: true });
  */
 export async function getAvailableExams() {
-  void supabase;
-  throw new Error(
-    'getAvailableExams() is not implemented yet (Ibrahim Lotfy - member2, Milestone M2).',
-  );
+  if (!supabase) {
+    return { data: [], error: null };
+  }
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('exams')
+      .select('*, subjects(name, code)')
+      .eq('is_active', true)
+      .lte('start_time', now)
+      .gte('end_time', now)
+      .order('start_time', { ascending: true });
+    return { data, error };
+  } catch (err) {
+    return { data: null, error: err };
+  }
 }
 
 /**
@@ -73,11 +85,19 @@ export async function getAvailableExams() {
  *     .single();
  */
 export async function getExamById(examId) {
-  void supabase;
-  void examId;
-  throw new Error(
-    'getExamById() is not implemented yet (Ibrahim Lotfy - member2, Milestone M2).',
-  );
+  if (!supabase) {
+    return { data: null, error: null };
+  }
+  try {
+    const { data, error } = await supabase
+      .from('exams')
+      .select('*, subjects(name, code)')
+      .eq('id', examId)
+      .single();
+    return { data, error };
+  } catch (err) {
+    return { data: null, error: err };
+  }
 }
 
 /**
@@ -106,9 +126,17 @@ export async function getExamById(examId) {
  *     .order('order_index', { ascending: true });
  */
 export async function getExamQuestionsWithoutAnswers(examId) {
-  void supabase;
-  void examId;
-  throw new Error(
-    'getExamQuestionsWithoutAnswers() is not implemented yet (Ibrahim Lotfy - member2, Milestone M2).',
-  );
+  if (!supabase) {
+    return { data: [], error: null };
+  }
+  try {
+    const { data, error } = await supabase
+      .from('questions')
+      .select('id, question_text, marks, order_index, options(id, option_text)')
+      .eq('exam_id', examId)
+      .order('order_index', { ascending: true });
+    return { data, error };
+  } catch (err) {
+    return { data: null, error: err };
+  }
 }

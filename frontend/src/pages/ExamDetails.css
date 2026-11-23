@@ -17,23 +17,6 @@
   margin: 0 auto;
 }
 
-.exam-details-todo-title {
-  margin: var(--space-sm) 0 var(--space-xs);
-  font-weight: 600;
-  color: var(--color-text);
-  font-size: 0.88rem;
-}
-
-.exam-details-todo-list {
-  margin: 0;
-  padding-left: 1.2rem;
-  font-size: 0.88rem;
-}
-
-.exam-details-todo-list li {
-  margin-bottom: 0.2rem;
-}
-
 /* The three numbers a student checks twice: duration, marks, attempts. */
 .exam-meta {
   display: grid;

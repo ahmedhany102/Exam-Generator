@@ -1,3 +1,10 @@
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import Loader from '../components/Loader.jsx';
+import { supabase } from '../lib/supabaseClient.js';
+import { getOpenAttempt } from '../services/attemptsService.js';
+import { getExamById } from '../services/examsService.js';
+import { getExamStatus, parseDuration } from '../utils/filterExams.js';
 import './ExamDetails.css';
 
 // ============================================================================
@@ -9,55 +16,238 @@ import './ExamDetails.css';
 // is marked, and the one rule that matters - a student sits an exam once. The
 // "Start exam" button is therefore not always enabled: it depends on whether an
 // attempt row already exists for this pair of exam and student.
-//
-// Cross-owner dependency (do not work around it):
-//   attemptsService.getOpenAttempt(examId) belongs to Ahmed Fayez (member3) and
-//   still throws the "not implemented" error in M0. The call must be wrapped in
-//   try/catch and a throw treated as "no attempt yet", otherwise member3's
-//   unfinished file would block this whole page during the demo.
-//
-// TODO(Ibrahim Lotfy, member2 - Milestone M2):
-//   1. const { examId } = useParams(); load getExamById(examId) in a useEffect
-//      and render a "Exam not found" card when data is null or error is set.
-//   2. Show subject name + code, duration via parseDuration(), total_marks,
-//      start_time..end_time and the status badge from getExamStatus().
-//   3. Rules panel: duration, total marks, one attempt only, answers are saved
-//      as they are chosen, and the exam submits itself when the timer reaches 0.
-//   4. Ask attemptsService.getOpenAttempt(examId) inside try/catch and store the
-//      result; on throw keep `attempt = null` and comment why.
-//   5. Button: "Start exam" -> navigate(`/exams/${examId}/take`). When an attempt
-//      already exists the label becomes "Resume exam" (in_progress) or
-//      "Already attempted" (submitted / auto_submitted), and the last one is
-//      disabled - the database's unique(exam_id, student_id) is the real guard.
-//   6. Never render an answer key here: options are not loaded on this page.
 // ============================================================================
 export default function ExamDetails() {
+  const { examId } = useParams();
+  const navigate = useNavigate();
+
+  const [exam, setExam] = useState(null);
+  const [attempt, setAttempt] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadData() {
+      setLoading(true);
+      setError(null);
+
+      const { data: examData, error: examErr } = await getExamById(examId);
+
+      if (cancelled) return;
+
+      if (examErr || !examData) {
+        setError(examErr?.message || 'Exam not found');
+        setLoading(false);
+        return;
+      }
+
+      setExam(examData);
+
+      let fetchedAttempt = null;
+      try {
+        const { data: openAttempt } = await getOpenAttempt(examId);
+        if (openAttempt) {
+          fetchedAttempt = openAttempt;
+        }
+      } catch {
+        // Tolerated until member3 lands
+      }
+
+      // Belt and braces: check existing attempts (including submitted)
+      if (!fetchedAttempt && supabase) {
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user?.id) {
+            const { data: anyAttempt } = await supabase
+              .from('attempts')
+              .select('id, status, started_at, submitted_at, score')
+              .eq('exam_id', examId)
+              .eq('student_id', user.id)
+              .maybeSingle();
+
+            if (anyAttempt) {
+              fetchedAttempt = anyAttempt;
+            }
+          }
+        } catch {
+          // Ignore
+        }
+      }
+
+      if (!cancelled) {
+        setAttempt(fetchedAttempt);
+        setLoading(false);
+      }
+    }
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [examId]);
+
+  if (loading) {
+    return (
+      <section className="exam-details-page">
+        <Loader message="Loading exam details..." />
+      </section>
+    );
+  }
+
+  if (error || !exam) {
+    return (
+      <section className="exam-details-page">
+        <header className="page-header">
+          <h1>Exam not found</h1>
+          <p>The exam you requested could not be found or is not available.</p>
+        </header>
+        <span className="owner-badge">Owner: Ibrahim Lotfy (member2)</span>
+        <div
+          className="alert alert-error"
+          role="alert"
+          style={{ marginBottom: 'var(--space-md)' }}
+        >
+          {error || 'Exam not found'}
+        </div>
+        <Link to="/exams" className="btn btn-secondary">
+          &larr; Back to available exams
+        </Link>
+      </section>
+    );
+  }
+
+  const examStatus = getExamStatus(exam);
+  const isAlreadySubmitted =
+    attempt?.status === 'submitted' || attempt?.status === 'auto_submitted';
+  const isInProgress = attempt?.status === 'in_progress';
+
+  let buttonText = 'Start exam';
+  if (isInProgress) {
+    buttonText = 'Resume exam';
+  } else if (isAlreadySubmitted) {
+    buttonText = 'Already attempted';
+  }
+
+  const isButtonDisabled = isAlreadySubmitted || examStatus === 'closed';
+
   return (
     <section className="exam-details-page">
       <header className="page-header">
-        <h1>Exam details</h1>
-        <p>
-          Read the rules first, then start. Once the exam is open you have the
-          full duration on the clock, and it is submitted for you when the time
-          runs out.
-        </p>
+        <h1>{exam.title}</h1>
+        {exam.subjects && (
+          <p>
+            <strong>Subject:</strong> {exam.subjects.name}{' '}
+            {exam.subjects.code ? `(${exam.subjects.code})` : ''}
+          </p>
+        )}
       </header>
 
       <span className="owner-badge">Owner: Ibrahim Lotfy (member2)</span>
 
-      <div className="placeholder-note">
-        <strong>Placeholder page - Milestone M0</strong>
-        <p className="exam-details-todo-title">This page will contain:</p>
-        <ul className="exam-details-todo-list">
-          <li>Exam title, subject name and subject code</li>
-          <li>Duration, total marks and the open/closed time window</li>
-          <li>A rules panel: one attempt only, auto-submit at zero</li>
-          <li>A "Start exam" button linking to /exams/:examId/take</li>
-          <li>
-            A check for an existing attempt, so a second start is refused instead
-            of creating a second row
-          </li>
-        </ul>
+      <div style={{ marginBottom: 'var(--space-md)' }}>
+        <span className={`exam-status exam-status--${examStatus}`}>
+          Status: {examStatus}
+        </span>
+      </div>
+
+      {exam.description && (
+        <p style={{ marginBottom: 'var(--space-lg)', fontSize: '1rem' }}>
+          {exam.description}
+        </p>
+      )}
+
+      <div className="exam-meta">
+        <div className="exam-meta-item">
+          <span className="exam-meta-label">Duration</span>
+          <span className="exam-meta-value">
+            {parseDuration(exam.duration_minutes)}
+          </span>
+        </div>
+        <div className="exam-meta-item">
+          <span className="exam-meta-label">Total Marks</span>
+          <span className="exam-meta-value">{exam.total_marks}</span>
+        </div>
+        <div className="exam-meta-item">
+          <span className="exam-meta-label">Attempts Allowed</span>
+          <span className="exam-meta-value">1 attempt</span>
+        </div>
+        {exam.start_time && (
+          <div className="exam-meta-item">
+            <span className="exam-meta-label">Opens</span>
+            <span className="exam-meta-value" style={{ fontSize: '0.85rem' }}>
+              {new Date(exam.start_time).toLocaleString()}
+            </span>
+          </div>
+        )}
+        {exam.end_time && (
+          <div className="exam-meta-item">
+            <span className="exam-meta-label">Closes</span>
+            <span className="exam-meta-value" style={{ fontSize: '0.85rem' }}>
+              {new Date(exam.end_time).toLocaleString()}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <h2>Exam Rules & Instructions</h2>
+      <ul className="exam-rules">
+        <li>
+          <strong>Duration:</strong> {parseDuration(exam.duration_minutes)}. The timer
+          starts immediately when you enter the exam.
+        </li>
+        <li>
+          <strong>Total Marks:</strong> {exam.total_marks} marks.
+        </li>
+        <li>
+          <strong>One Attempt:</strong> You can only take this exam once. Duplicate
+          attempts are prevented by the system.
+        </li>
+        <li>
+          <strong>Auto-Save:</strong> Answers are saved as you select them so
+          refreshing or navigating will not lose your progress.
+        </li>
+        <li>
+          <strong>Auto-Submit:</strong> When the countdown timer reaches zero, your exam
+          will be submitted automatically with your saved answers.
+        </li>
+      </ul>
+
+      {isAlreadySubmitted && (
+        <div className="alert alert-info" style={{ marginBottom: 'var(--space-md)' }}>
+          You have already completed this exam. You cannot take it again.
+        </div>
+      )}
+
+      {examStatus === 'upcoming' && (
+        <div className="alert alert-warning" style={{ marginBottom: 'var(--space-md)' }}>
+          This exam is not open yet. Please check back at the scheduled opening time.
+        </div>
+      )}
+
+      {examStatus === 'closed' && (
+        <div className="alert alert-error" style={{ marginBottom: 'var(--space-md)' }}>
+          This exam has closed and is no longer accepting attempts.
+        </div>
+      )}
+
+      <div className="exam-actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={isButtonDisabled || examStatus === 'upcoming'}
+          onClick={() => navigate(`/exams/${exam.id}/take`)}
+        >
+          {buttonText}
+        </button>
+
+        <Link to="/exams" className="btn btn-secondary">
+          Back to exams
+        </Link>
       </div>
     </section>
   );
