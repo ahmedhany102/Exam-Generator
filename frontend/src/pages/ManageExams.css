@@ -1,38 +1,6 @@
-/* ==========================================================================
-   ManageExams.css - styles for pages/ManageExams.jsx
-   Owner: Ahmed Fayez (member3) - Doctor Dashboard & Exam Creation
-   --------------------------------------------------------------------------
-   This page is wider than a reading page because the table has seven columns;
-   it still fits the shared --max-width, so no horizontal scrolling is needed.
-   --------------------------------------------------------------------------
-   TODO(Ahmed Fayez, member3 - Milestone M3):
-     1. Wire .manage-exams-table to the real rows and right-align the numeric
-        columns (.manage-exams-number) so durations and marks line up.
-     2. Wire .exam-badge--active / .exam-badge--inactive to exams.is_active.
-     3. Add .manage-exams-table-wrapper { overflow-x: auto } around the table
-        once the real row count proves it is needed on a phone.
-   ========================================================================== */
-
 .manage-exams-page {
   max-width: 980px;
   margin: 0 auto;
-}
-
-.manage-exams-todo-title {
-  margin: var(--space-sm) 0 var(--space-xs);
-  font-weight: 600;
-  color: var(--color-text);
-  font-size: 0.88rem;
-}
-
-.manage-exams-todo-list {
-  margin: 0;
-  padding-left: 1.2rem;
-  font-size: 0.88rem;
-}
-
-.manage-exams-todo-list li {
-  margin-bottom: 0.2rem;
 }
 
 .manage-exams-table-wrapper {
@@ -77,6 +45,15 @@
 .manage-exams-number {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.manage-exams-window {
+  min-width: 190px;
+  white-space: nowrap;
+}
+
+.manage-exams-window span {
+  display: block;
 }
 
 /* Status chip: active vs inactive, the same 999px pill as the owner badge. */

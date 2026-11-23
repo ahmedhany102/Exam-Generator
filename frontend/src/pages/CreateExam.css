@@ -1,42 +1,6 @@
-/* ==========================================================================
-   CreateExam.css - styles for pages/CreateExam.jsx
-   Owner: Ahmed Fayez (member3) - Doctor Dashboard & Exam Creation
-   --------------------------------------------------------------------------
-   A form page is naturally wider than a reading page, so the max-width here is
-   a little larger than the 860px used by the text pages. The question blocks
-   are cards with their own header, option rows and a footer for the marks and
-   the remove button.
-   --------------------------------------------------------------------------
-   TODO(Ahmed Fayez, member3 - Milestone M3):
-     1. Wire .create-exam-question to the rendered question blocks and give the
-        block a --color-danger border while validateExam() reports an error in
-        it, so the message and the field are visually connected.
-     2. Add .create-exam-option-row--correct styling (green check, soft
-        background) for the radio that currently holds correctIndex.
-     3. Make .create-exam-actions sticky at the bottom of the viewport on
-        desktop: with 15 questions the Save button is otherwise a long scroll.
-   ========================================================================== */
-
 .create-exam-page {
   max-width: 880px;
   margin: 0 auto;
-}
-
-.create-exam-todo-title {
-  margin: var(--space-sm) 0 var(--space-xs);
-  font-weight: 600;
-  color: var(--color-text);
-  font-size: 0.88rem;
-}
-
-.create-exam-todo-list {
-  margin: 0;
-  padding-left: 1.2rem;
-  font-size: 0.88rem;
-}
-
-.create-exam-todo-list li {
-  margin-bottom: 0.2rem;
 }
 
 /* The exam header fields sit two per row, stacking on narrow screens. */
@@ -86,6 +50,7 @@
 
 .create-exam-option-row input[type='text'] {
   flex: 1;
+  min-width: 0;
   padding: 0.45rem 0.6rem;
   font-family: inherit;
   font-size: 0.92rem;
@@ -96,6 +61,21 @@
 .create-exam-option-row input[type='text']:focus {
   outline: 2px solid var(--color-primary-soft);
   border-color: var(--color-primary);
+}
+
+.create-exam-option-remove {
+  flex: 0 0 auto;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+.create-exam-option-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
 }
 
 /* The live sum, deliberately loud: it is the number validateExam() compares. */
@@ -120,4 +100,24 @@
   flex-wrap: wrap;
   gap: var(--space-sm);
   margin-top: var(--space-lg);
+}
+
+.create-exam-marks {
+  max-width: 180px;
+}
+
+.create-exam-option-row--correct {
+  padding: 0.35rem;
+  background-color: var(--color-success-soft);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 640px) {
+  .create-exam-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: var(--space-sm);
+    background-color: var(--color-page);
+  }
 }

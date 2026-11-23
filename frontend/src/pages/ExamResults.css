@@ -6,35 +6,12 @@
    cards reuse the stat look of the doctor dashboard on purpose: the two pages
    are read the same way, so they should feel like the same screen.
    --------------------------------------------------------------------------
-   TODO(Ahmed Fayez, member3 - Milestone M3):
-     1. Wire .exam-results-summary to the three real numbers (count, average,
-        pass rate) and colour .exam-results-stat-value by outcome.
-     2. Wire .exam-results-badge modifiers to the three attempt statuses
-        ('submitted', 'auto_submitted', 'in_progress').
-     3. Add .exam-results-score--low (below the pass threshold) so a failing
-        score is visible without reading every number.
+   Summary cards, status badges, and low-score styling are rendered by the page.
    ========================================================================== */
 
 .exam-results-page {
   max-width: 940px;
   margin: 0 auto;
-}
-
-.exam-results-todo-title {
-  margin: var(--space-sm) 0 var(--space-xs);
-  font-weight: 600;
-  color: var(--color-text);
-  font-size: 0.88rem;
-}
-
-.exam-results-todo-list {
-  margin: 0;
-  padding-left: 1.2rem;
-  font-size: 0.88rem;
-}
-
-.exam-results-todo-list li {
-  margin-bottom: 0.2rem;
 }
 
 /* Count / average / pass rate: same card language as the doctor dashboard. */
@@ -70,7 +47,16 @@
   color: var(--color-text-muted);
 }
 
+.exam-results-table-wrapper {
+  overflow-x: auto;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
 .exam-results-table {
+  min-width: 760px;
   width: 100%;
   border-collapse: collapse;
   background-color: var(--color-surface);
@@ -121,4 +107,21 @@
 .exam-results-badge--running {
   background-color: var(--color-page);
   color: var(--color-text-muted);
+}
+
+.exam-results-score--low {
+  color: var(--color-danger);
+}
+
+.exam-results-note {
+  margin-top: var(--space-md);
+}
+
+.exam-results-empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-muted);
+  background-color: var(--color-page);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
 }

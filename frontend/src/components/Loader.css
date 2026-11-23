@@ -5,13 +5,7 @@
    rotated by a keyframe. No image, no library, no layout shift - the box keeps
    its height even before the text arrives.
    --------------------------------------------------------------------------
-   TODO(Ahmed Fayez, member3 - Milestone M3):
-     1. Add a .loader--inline modifier for the table rows that wait for data
-        (ManageExams, ExamResults) once the `variant` prop exists.
-     2. Add a .loader--compact size for the navbar-sized waits; keep the same
-        4px-based spacing tokens so it never looks like a different component.
-     3. If a long wait ever needs a hint ("Grading your answers..."), style it
-        with .loader-note instead of adding another paragraph class per page.
+   Includes an inline layout variant and reduced-motion support.
    ========================================================================== */
 
 .loader {
@@ -35,6 +29,12 @@
 
 .loader-text {
   font-weight: 500;
+}
+
+.loader--inline {
+  display: inline-flex;
+  padding: 0;
+  min-height: 32px;
 }
 
 @keyframes loader-spin {

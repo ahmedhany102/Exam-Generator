@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import './Loader.css';
 
 // ============================================================================
@@ -10,20 +11,31 @@ import './Loader.css';
 // the demo: the reviewer should never wonder whether a blank area is "loading"
 // or "broken".
 //
-// TODO(Ahmed Fayez, member3 - Milestone M3):
-//   1. Add a `delayMs` prop (default 0) and render nothing until it elapses, so
-//      a request answered from a warm cache does not flash a spinner.
-//   2. Add a `variant` prop ('block' default, 'inline') for use inside a table
-//      row on ManageExams.jsx and ExamResults.jsx, where a full-height block
-//      would push the layout around.
-//   3. Keep role="status" + aria-live="polite": a screen reader should hear the
-//      message once per state change, not on every rerender.
-//   4. Respect prefers-reduced-motion in Loader.css (already done) - the text
-//      alone must be enough information.
+// Optional delay and layout variants prevent flashes and support inline use.
+// Status messaging and reduced-motion styling keep the wait accessible.
 // ============================================================================
-export default function Loader({ message = 'Loading...' }) {
+export default function Loader({ message = 'Loading...', delayMs = 0, variant = 'block' }) {
+  const [visible, setVisible] = useState(delayMs <= 0);
+
+  useEffect(() => {
+    if (delayMs <= 0) {
+      setVisible(true);
+      return undefined;
+    }
+    setVisible(false);
+    const timer = window.setTimeout(() => setVisible(true), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [delayMs]);
+
+  if (!visible) return null;
+
   return (
-    <div className="loader" role="status" aria-live="polite">
+    <div
+      className={`loader loader--${variant}`}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <span className="loader-spinner" aria-hidden="true" />
       <span className="loader-text">{message}</span>
     </div>

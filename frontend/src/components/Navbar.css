@@ -5,13 +5,7 @@
    how a link looks in its three states: normal, hovered and .active (the
    class NavLink adds by itself on the matching URL).
    --------------------------------------------------------------------------
-   TODO(Ahmed Fayez, member3 - Milestone M3):
-     1. Add a .navbar-toggle button style for the under-640px menu (TODO 4 in
-        Navbar.jsx); the current layout only wraps.
-     2. Give .navbar-role a colour per role (student/doctor/admin) once the
-        role chip carries a full name instead of the raw column value.
-     3. Keep the sticky offset in mind: .navbar is position: sticky, so any
-        future anchor scrolling needs scroll-margin-top: 64px on the target.
+   The mobile menu toggle is styled below with the narrow-screen rules.
    ========================================================================== */
 
 .navbar {
@@ -31,6 +25,18 @@
   align-items: center;
   gap: var(--space-lg);
   flex-wrap: wrap;
+}
+
+.navbar-toggle {
+  display: none;
+  margin-left: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0.4rem 0.65rem;
+  font: inherit;
+  font-weight: 600;
 }
 
 .navbar-brand {
@@ -84,6 +90,14 @@
   margin-left: auto;
 }
 
+.navbar-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 0.8rem;
+  text-align: right;
+}
+
 .navbar-email {
   font-size: 0.82rem;
   color: var(--color-text-muted);
@@ -110,6 +124,20 @@
 @media (max-width: 640px) {
   .navbar-inner {
     gap: var(--space-sm);
+  }
+
+  .navbar-toggle {
+    display: inline-flex;
+  }
+
+  .navbar-links {
+    display: none;
+    order: 4;
+    width: 100%;
+  }
+
+  .navbar-links--open {
+    display: flex;
   }
 
   .navbar-email {
