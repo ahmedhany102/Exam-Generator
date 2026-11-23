@@ -19,21 +19,13 @@
   margin: 0 auto;
 }
 
-.take-exam-todo-title {
-  margin: var(--space-sm) 0 var(--space-xs);
-  font-weight: 600;
-  color: var(--color-text);
-  font-size: 0.88rem;
-}
-
-.take-exam-todo-list {
-  margin: 0;
-  padding-left: 1.2rem;
-  font-size: 0.88rem;
-}
-
-.take-exam-todo-list li {
-  margin-bottom: 0.2rem;
+.take-exam-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  flex-wrap: wrap;
 }
 
 /* Sticky so the clock never scrolls out of view while reading a long question. */

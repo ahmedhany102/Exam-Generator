@@ -1,3 +1,8 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import Loader from '../components/Loader.jsx';
+import { getAvailableExams } from '../services/examsService.js';
+import { filterExams, getExamStatus, parseDuration } from '../utils/filterExams.js';
 import './Exams.css';
 
 // ============================================================================
@@ -9,20 +14,52 @@ import './Exams.css';
 // filterable by subject. Nothing is fetched per keystroke - the list is loaded
 // once and filtered in the browser by utils/filterExams.js, which keeps the page
 // fast and the network quiet.
-//
-// TODO(Ibrahim Lotfy, member2 - Milestone M2):
-//   1. On mount: getAvailableExams() from services/examsService.js, keep
-//      `exams`, `loading` and `error` in useState.
-//   2. Load the subject list once for the filter <select> (all subjects = '').
-//   3. Controlled search input + subject <select>, both feeding filterExams()
-//      through useMemo-free code: one derived array computed at render time.
-//   4. Card grid: title, subject name + code, duration via parseDuration(),
-//      total_marks, and a status badge from getExamStatus().
-//   5. Each card links to /exams/:examId - a <Link> from react-router-dom.
-//   6. Three states: <Loader /> while loading, an alert on error, and
-//      "No exams match your search." when the filter returns nothing.
 // ============================================================================
 export default function Exams() {
+  const [exams, setExams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSubjectId, setSelectedSubjectId] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchExams() {
+      setLoading(true);
+      setError(null);
+      const { data, error: err } = await getAvailableExams();
+      if (!cancelled) {
+        if (err) {
+          setError(err.message || 'Failed to load exams.');
+        } else {
+          setExams(data || []);
+        }
+        setLoading(false);
+      }
+    }
+
+    fetchExams();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Subject list extracted from the exams loaded
+  const subjectsMap = new Map();
+  for (const exam of exams) {
+    if (exam.subject_id && exam.subjects?.name) {
+      subjectsMap.set(exam.subject_id, {
+        id: exam.subject_id,
+        name: exam.subjects.name,
+        code: exam.subjects.code,
+      });
+    }
+  }
+  const subjects = Array.from(subjectsMap.values());
+
+  const filteredExams = filterExams(exams, searchQuery, selectedSubjectId);
+
   return (
     <section className="exams-page">
       <header className="page-header">
@@ -36,17 +73,101 @@ export default function Exams() {
 
       <span className="owner-badge">Owner: Ibrahim Lotfy (member2)</span>
 
-      <div className="placeholder-note">
-        <strong>Placeholder page - Milestone M0</strong>
-        <p className="exams-todo-title">This page will contain:</p>
-        <ul className="exams-todo-list">
-          <li>A search box and a subject filter, both applied in the browser</li>
-          <li>A card grid: title, subject, duration and total marks</li>
-          <li>A status badge: open, upcoming or closed</li>
-          <li>A link from each card to /exams/:examId</li>
-          <li>Loading, error and "no exams match" states</li>
-        </ul>
+      <div className="exams-toolbar">
+        <div className="form-group">
+          <label htmlFor="exam-search">Search exams</label>
+          <input
+            id="exam-search"
+            type="text"
+            className="input"
+            placeholder="Search by title, description or subject..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="subject-filter">Filter by subject</label>
+          <select
+            id="subject-filter"
+            className="input"
+            value={selectedSubjectId}
+            onChange={(e) => setSelectedSubjectId(e.target.value)}
+          >
+            <option value="">All subjects</option>
+            {subjects.map((sub) => (
+              <option key={sub.id} value={sub.id}>
+                {sub.name} {sub.code ? `(${sub.code})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      <div
+        className="exams-count"
+        style={{ marginBottom: 'var(--space-md)', color: 'var(--color-text-muted)' }}
+      >
+        Showing {filteredExams.length} {filteredExams.length === 1 ? 'exam' : 'exams'}
+      </div>
+
+      {loading && <Loader message="Loading available exams..." />}
+
+      {error && !loading && (
+        <div className="alert alert-error" role="alert">
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && filteredExams.length === 0 && (
+        <div className="alert alert-info">
+          {exams.length === 0
+            ? 'No exams are currently available.'
+            : 'No exams match your search.'}
+        </div>
+      )}
+
+      {!loading && !error && filteredExams.length > 0 && (
+        <div className="exams-grid">
+          {filteredExams.map((exam) => {
+            const status = getExamStatus(exam);
+            return (
+              <article key={exam.id} className="exam-card">
+                <span className={`exam-status exam-status--${status}`}>
+                  {status}
+                </span>
+                <h2>{exam.title}</h2>
+                {exam.description && (
+                  <p className="exam-card-description">{exam.description}</p>
+                )}
+                <div className="exam-card-meta">
+                  {exam.subjects && (
+                    <div>
+                      <strong>Subject:</strong> {exam.subjects.name}{' '}
+                      {exam.subjects.code && `(${exam.subjects.code})`}
+                    </div>
+                  )}
+                  <div>
+                    <strong>Duration:</strong> {parseDuration(exam.duration_minutes)}
+                  </div>
+                  <div>
+                    <strong>Total marks:</strong> {exam.total_marks}
+                  </div>
+                </div>
+                <div style={{ marginTop: 'auto', paddingTop: 'var(--space-sm)' }}>
+                  <Link
+                    to={`/exams/${exam.id}`}
+                    className="btn btn-primary"
+                    style={{ display: 'inline-block' }}
+                  >
+                    View details
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
