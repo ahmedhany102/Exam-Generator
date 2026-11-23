@@ -17,7 +17,50 @@
   text-align: center;
 }
 
-/* Login and Register share the same small "what is still missing" list. */
+/* ---- the form ------------------------------------------------------------ */
+
+.login-form {
+  margin-top: var(--space-md);
+}
+
+/* The error box reuses the global .alert styles; this only tightens spacing so
+   the layout does not jump when the message appears. */
+.login-error {
+  margin-bottom: var(--space-md);
+  font-size: 0.86rem;
+}
+
+/* Row under the inputs: "Log in" button on the left, "Register" link right. */
+.login-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.login-submit {
+  min-width: 130px;
+}
+
+.login-link {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.login-hint {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+}
+
+/* ---- legacy M0 helper classes -------------------------------------------
+   No longer used by this page (the placeholder note is gone) but kept so the
+   diff stays small and Register.css can keep sharing the same look if needed.
+   ------------------------------------------------------------------------- */
+
 .login-todo-title {
   margin: var(--space-sm) 0 var(--space-xs);
   font-weight: 600;
@@ -33,13 +76,4 @@
 
 .login-todo-list li {
   margin-bottom: 0.2rem;
-}
-
-/* Row under the form: "Log in" button on the left, "Register" link right. */
-.login-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  margin-top: var(--space-md);
 }
